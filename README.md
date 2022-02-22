@@ -10,14 +10,18 @@ This managed-node-metadata-operator will attempt to watch MachineSet objects and
 
 ```mermaid
 flowchart TD
-    A[User updates MachineSet in OCM] --> B[Hive applies changes to MachineSet on cluster];
+    A[User updates MachineSet in OCM] --> B[Hive applies changes to MachineSet on cluster]
     B --> C;
     subgraph Managed Node Metadata Operator
       C[MNMO Picks up change to MachineSet and begins reconcile] --> D[Loop through all Machines in Machineset and Sync Label/Taint changes];
-      D --> E[Remove Taints/Labels not present in MachineSet and present on Machine];
-      E --> F[Apply Taints/Labels present in MachineSet and not present on Machine];
-      D --> G[Loop through all Nodes in MachineSet and sync Label/Taint changes];
-      G --> H[Remove Taints/Labels not presnet in MachineSet and present on Node];
-      H --> I[Apply Taints/Labels present in MachineSet and not present on Node];
+      subgraph m1
+        D --> E[Remove Taints/Labels not present in MachineSet and present on Machine];
+        E --> F[Apply Taints/Labels present in MachineSet and not present on Machine];
+      end
+      C --> G[Loop through all Nodes in MachineSet and sync Label/Taint changes];
+      subgraph n1
+        G --> H[Remove Taints/Labels not presnet in MachineSet and present on Node];
+        H --> I[Apply Taints/Labels present in MachineSet and not present on Node];
+      end
     end
 ```
