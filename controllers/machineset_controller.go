@@ -100,20 +100,28 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, request reconcile.
 		return reconcile.Result{}, err
 	}
 
-	if machineSet.Labels != nil {
-		machinesetLabel := machineSet.Labels
+	allMachines := &machinev1.MachineList{}
 
-		allMachines := &machinev1.MachineList{}
+	err = r.Client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to list machines: %w", err)
+	}
 
-		err := r.Client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("failed to list machines: %w", err)
-		}
+	for msKey, msValue := range machineSet.Labels {
+		presentInMachine := false
 
 		for idx := range allMachines.Items {
 			machine := &allMachines.Items[idx]
-			if machine.Labels == nil {
-				machine.Labels = machinesetLabel
+
+			for mKey, mValue := range machine.Labels {
+				if mKey == msKey && mValue == msValue {
+					presentInMachine = true
+					break
+				}
+			}
+
+			if !presentInMachine {
+				machine.Labels[msKey] = msValue
 			}
 
 			node := &v1.Node{}
@@ -124,10 +132,22 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, request reconcile.
 				return reconcile.Result{}, err
 			}
 
-			if node.Labels == nil {
-				node.Labels = machinesetLabel
+			for mKey, mValue := range machine.Labels {
+				presentInNode := false
+
+				for nKey, nValue := range node.Labels {
+					if nKey == mKey && nValue == mValue {
+						presentInNode = true
+						break
+					}
+				}
+
+				if !presentInNode {
+					node.Labels[mKey] = mValue
+				}
 			}
 		}
+
 	}
 
 	return reconcile.Result{}, nil
