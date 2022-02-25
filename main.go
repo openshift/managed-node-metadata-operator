@@ -67,7 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.MachineSetReconciler{
+	if err = (&controllers.ReconcileMachineSet{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("MachineSet"),
 		Scheme: mgr.GetScheme(),

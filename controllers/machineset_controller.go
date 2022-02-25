@@ -22,7 +22,6 @@ import (
 
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -46,11 +45,10 @@ func Add(mgr manager.Manager) error {
 }
 
 // newReconciler returns a new reconcile.Reconciler.
-func newReconciler(mgr manager.Manager) *MachineSetReconciler {
-	r := &MachineSetReconciler{
-		Client:   mgr.GetClient(),
-		scheme:   mgr.GetScheme(),
-		recorder: mgr.GetEventRecorderFor(controllerName)}
+func newReconciler(mgr manager.Manager) *ReconcileMachineSet {
+	r := &ReconcileMachineSet{
+		client: mgr.GetClient(),
+		scheme: mgr.GetScheme()}
 	return r
 }
 
@@ -75,21 +73,19 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // MachineSetReconciler reconciles a MachineSet object
-type MachineSetReconciler struct {
-	client.Client
-
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
+type ReconcileMachineSet struct {
+	client client.Client
+	scheme *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/status,verbs=get;update;patch
 
-func (r *MachineSetReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	// Fetch the MachineSet instance
 	machineSet := &machinev1.MachineSet{}
-	err := r.Get(ctx, request.NamespacedName, machineSet)
+	err := r.client.Get(ctx, request.NamespacedName, machineSet)
 	if err != nil {
 		if k8serr.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -102,7 +98,7 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, request reconcile.
 
 	allMachines := &machinev1.MachineList{}
 
-	err = r.Client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
+	err = r.client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to list machines: %w", err)
 	}
@@ -126,7 +122,7 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, request reconcile.
 
 			node := &v1.Node{}
 			key := client.ObjectKey{Namespace: metav1.NamespaceNone, Name: machine.Status.NodeRef.Name}
-			err := r.Client.Get(context.TODO(), key, node)
+			err := r.client.Get(context.TODO(), key, node)
 			if err != nil {
 				fmt.Errorf("failed to fetch node for machine %s", machine.Name)
 				return reconcile.Result{}, err
