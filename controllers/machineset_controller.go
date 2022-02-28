@@ -20,18 +20,19 @@ import (
 	"context"
 	"fmt"
 
+	machinev1 "github.com/openshift/api/machine/v1beta1"
+	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	machinev1 "github.com/openshift/api/machine/v1beta1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -40,20 +41,18 @@ var (
 
 // Add creates a new MachineSet Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+func Add(mgr manager.Manager, opts manager.Options) error {
+	r := newReconciler(mgr)
+	return add(mgr, r, r.MachineToMachineSets)
 }
 
 // newReconciler returns a new reconcile.Reconciler.
 func newReconciler(mgr manager.Manager) *ReconcileMachineSet {
-	r := &ReconcileMachineSet{
-		client: mgr.GetClient(),
-		scheme: mgr.GetScheme()}
-	return r
+	return &ReconcileMachineSet{Client: mgr.GetClient(), scheme: mgr.GetScheme(), recorder: mgr.GetEventRecorderFor(controllerName)}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler.
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, r reconcile.Reconciler, mapFn handler.MapFunc) error {
 	// Create a new controller.
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -69,13 +68,57 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	return nil
+	// Map Machine changes to MachineSets using ControllerRef.
+	err = c.Watch(
+		&source.Kind{Type: &machinev1.Machine{}},
+		&handler.EnqueueRequestForOwner{IsController: true, OwnerType: &machinev1.MachineSet{}},
+	)
+	if err != nil {
+		return err
+	}
+
+	// Map Machine changes to MachineSets by machining labels.
+	return c.Watch(
+		&source.Kind{Type: &machinev1.Machine{}},
+		handler.EnqueueRequestsFromMapFunc(mapFn),
+	)
 }
 
-// MachineSetReconciler reconciles a MachineSet object
+// ReconcileMachineSet reconciles a MachineSet object
 type ReconcileMachineSet struct {
-	client client.Client
-	scheme *runtime.Scheme
+	client.Client
+	scheme   *runtime.Scheme
+	recorder record.EventRecorder
+}
+
+func (r *ReconcileMachineSet) MachineToMachineSets(o client.Object) []reconcile.Request {
+	result := []reconcile.Request{}
+	m := &machinev1.Machine{}
+	key := client.ObjectKey{Namespace: o.GetNamespace(), Name: o.GetName()}
+	err := r.Client.Get(context.Background(), key, m)
+	if err != nil {
+		klog.Errorf("Unable to retrieve Machine %v from store: %v", key, err)
+		return nil
+	}
+
+	for _, ref := range m.ObjectMeta.OwnerReferences {
+		if ref.Controller != nil && *ref.Controller {
+			return result
+		}
+	}
+
+	mss := r.getMachineSetsForMachine(m)
+	if len(mss) == 0 {
+		klog.V(4).Infof("Found no machine set for machine: %v", m.Name)
+		return nil
+	}
+
+	for _, ms := range mss {
+		name := client.ObjectKey{Namespace: ms.Namespace, Name: ms.Name}
+		result = append(result, reconcile.Request{NamespacedName: name})
+	}
+
+	return result
 }
 
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
@@ -85,7 +128,7 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 
 	// Fetch the MachineSet instance
 	machineSet := &machinev1.MachineSet{}
-	err := r.client.Get(ctx, request.NamespacedName, machineSet)
+	err := r.Client.Get(ctx, request.NamespacedName, machineSet)
 	if err != nil {
 		if k8serr.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -98,7 +141,7 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 
 	allMachines := &machinev1.MachineList{}
 
-	err = r.client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
+	err = r.Client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to list machines: %w", err)
 	}
@@ -122,7 +165,7 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 
 			node := &v1.Node{}
 			key := client.ObjectKey{Namespace: metav1.NamespaceNone, Name: machine.Status.NodeRef.Name}
-			err := r.client.Get(context.TODO(), key, node)
+			err := r.Client.Get(context.TODO(), key, node)
 			if err != nil {
 				fmt.Errorf("failed to fetch node for machine %s", machine.Name)
 				return reconcile.Result{}, err
