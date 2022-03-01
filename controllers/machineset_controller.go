@@ -69,20 +69,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler, mapFn handler.MapFunc) err
 		return err
 	}
 
-	// Map Machine changes to MachineSets using ControllerRef.
-	err = c.Watch(
-		&source.Kind{Type: &machinev1.Machine{}},
-		&handler.EnqueueRequestForOwner{IsController: true, OwnerType: &machinev1.MachineSet{}},
-	)
-	if err != nil {
-		return err
-	}
+	return nil
 
-	// Map Machine changes to MachineSets by machining labels.
-	return c.Watch(
-		&source.Kind{Type: &machinev1.Machine{}},
-		handler.EnqueueRequestsFromMapFunc(mapFn),
-	)
 }
 
 // ReconcileMachineSet reconciles a MachineSet object
