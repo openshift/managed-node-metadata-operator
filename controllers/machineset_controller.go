@@ -21,9 +21,9 @@ import (
 	"fmt"
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
-	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -37,6 +37,7 @@ import (
 
 var (
 	controllerName = "machineset_controller"
+	controllerKind = machinev1.SchemeGroupVersion.WithKind("MachineSet")
 )
 
 // Add creates a new MachineSet Controller and adds it to the Manager with default RBAC.
@@ -146,13 +147,43 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 		return reconcile.Result{}, fmt.Errorf("failed to list machines: %w", err)
 	}
 
+	// Make sure that label selector can match template's labels.
+	// TODO(vincepri): Move to a validation (admission) webhook when supported.
+	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to parse MachineSet %q label selector: %w", machineSet.Name, err)
+	}
+
+	if !selector.Matches(labels.Set(machineSet.Spec.Template.Labels)) {
+		return reconcile.Result{}, fmt.Errorf("failed validation on MachineSet %q label selector, cannot match any machines ", machineSet.Name)
+	}
+
+	// Filter out irrelevant machines (deleting/mismatch labels) and claim orphaned machines.
+	var machineNames []string
+	machineSetMachines := make(map[string]*machinev1.Machine)
+	for idx := range allMachines.Items {
+		machine := &allMachines.Items[idx]
+		if shouldExcludeMachine(machineSet, machine) {
+			continue
+		}
+
+		// Attempt to adopt machine if it meets previous conditions and it has no controller references.
+		if metav1.GetControllerOf(machine) == nil {
+			if err := r.adoptOrphan(machineSet, machine); err != nil {
+				klog.Warningf("Failed to adopt Machine %q into MachineSet %q: %v", machine.Name, machineSet.Name, err)
+				continue
+			}
+		}
+		machineNames = append(machineNames, machine.Name)
+		machineSetMachines[machine.Name] = machine
+	}
+
 	for msKey, msValue := range machineSet.Labels {
 		presentInMachine := false
 
-		for idx := range allMachines.Items {
-			machine := &allMachines.Items[idx]
+		for _, m := range machineSetMachines {
 
-			for mKey, mValue := range machine.Labels {
+			for mKey, mValue := range m.Labels {
 				if mKey == msKey && mValue == msValue {
 					presentInMachine = true
 					break
@@ -160,34 +191,82 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 			}
 
 			if !presentInMachine {
-				machine.Labels[msKey] = msValue
+				m.Labels[msKey] = msValue
 			}
 
-			node := &v1.Node{}
-			key := client.ObjectKey{Namespace: metav1.NamespaceNone, Name: machine.Status.NodeRef.Name}
-			err := r.Client.Get(context.TODO(), key, node)
-			if err != nil {
-				fmt.Errorf("failed to fetch node for machine %s", machine.Name)
-				return reconcile.Result{}, err
-			}
-
-			for mKey, mValue := range machine.Labels {
-				presentInNode := false
-
-				for nKey, nValue := range node.Labels {
-					if nKey == mKey && nValue == mValue {
-						presentInNode = true
-						break
-					}
-				}
-
-				if !presentInNode {
-					node.Labels[mKey] = mValue
-				}
-			}
 		}
 
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// shouldExcludeMachine returns true if the machine should be filtered out, false otherwise.
+func shouldExcludeMachine(machineSet *machinev1.MachineSet, machine *machinev1.Machine) bool {
+	// Ignore inactive machines.
+	if metav1.GetControllerOf(machine) != nil && !metav1.IsControlledBy(machine, machineSet) {
+		klog.V(4).Infof("%s not controlled by %v", machine.Name, machineSet.Name)
+		return true
+	}
+
+	if machine.ObjectMeta.DeletionTimestamp != nil {
+		return true
+	}
+
+	if !hasMatchingLabels(machineSet, machine) {
+		return true
+	}
+
+	return false
+}
+
+func (r *ReconcileMachineSet) adoptOrphan(machineSet *machinev1.MachineSet, machine *machinev1.Machine) error {
+	newRef := *metav1.NewControllerRef(machineSet, controllerKind)
+	machine.OwnerReferences = append(machine.OwnerReferences, newRef)
+	return r.Client.Update(context.Background(), machine)
+}
+
+func hasMatchingLabels(machineSet *machinev1.MachineSet, machine *machinev1.Machine) bool {
+	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
+	if err != nil {
+		klog.Warningf("unable to convert selector: %v", err)
+		return false
+	}
+
+	// If a deployment with a nil or empty selector creeps in, it should match nothing, not everything.
+	if selector.Empty() {
+		klog.V(2).Infof("%v machineset has empty selector", machineSet.Name)
+		return false
+	}
+
+	if !selector.Matches(labels.Set(machine.Labels)) {
+		klog.V(4).Infof("%v machine has mismatch labels", machine.Name)
+		return false
+	}
+
+	return true
+}
+
+func (c *ReconcileMachineSet) getMachineSetsForMachine(m *machinev1.Machine) []*machinev1.MachineSet {
+	if len(m.Labels) == 0 {
+		klog.Warningf("No machine sets found for Machine %v because it has no labels", m.Name)
+		return nil
+	}
+
+	msList := &machinev1.MachineSetList{}
+	err := c.Client.List(context.Background(), msList, client.InNamespace(m.Namespace))
+	if err != nil {
+		klog.Errorf("Failed to list machine sets, %v", err)
+		return nil
+	}
+
+	var mss []*machinev1.MachineSet
+	for idx := range msList.Items {
+		ms := &msList.Items[idx]
+		if hasMatchingLabels(ms, m) {
+			mss = append(mss, ms)
+		}
+	}
+
+	return mss
 }
