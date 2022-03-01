@@ -63,6 +63,7 @@ func main() {
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "cdb62f5e.my.domain",
+		Namespace:          "openshift-machine-api",
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), opts)
