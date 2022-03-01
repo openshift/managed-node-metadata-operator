@@ -166,14 +166,15 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 		machineSetMachines[machine.Name] = machine
 	}
 
-	for msKey, msValue := range machineSet.Labels {
+	for msKey, msValue := range machineSet.Spec.Template.Spec.Labels {
 		presentInMachine := false
 
 		for _, m := range machineSetMachines {
 
-			for mKey, mValue := range m.Labels {
+			for mKey, mValue := range m.Spec.Labels {
 				if mKey == msKey && mValue == msValue {
 					presentInMachine = true
+					klog.Info("Key %s is already present in machine", mValue)
 					break
 				}
 			}
