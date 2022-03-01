@@ -181,6 +181,7 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 
 			if !presentInMachine {
 				m.Labels[msKey] = msValue
+				klog.Info("Key %s is not present, adding to machine", msValue)
 			}
 
 		}
