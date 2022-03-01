@@ -29,6 +29,8 @@ import (
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
 	"github.com/openshift/managed-node-metadata-operator/controllers"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -55,30 +57,30 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	opts := ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "cdb62f5e.my.domain",
-	})
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), opts)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ReconcileMachineSet{
-		Client: mgr.GetClient(),
-		scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "MachineSet")
-		os.Exit(1)
+	// Setup Scheme for all resources
+	if err := machinev1.AddToScheme(mgr.GetScheme()); err != nil {
+		klog.Fatal(err)
 	}
-	// +kubebuilder:scaffold:builder
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+	// Setup all Controllers
+	if err := controllers.AddToManager(mgr, opts, controllers.Add); err != nil {
+		klog.Fatal(err)
 	}
+
+	// Start the Cmd
+	klog.Fatal(mgr.Start(signals.SetupSignalHandler()))
 }
