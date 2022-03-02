@@ -19,8 +19,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
+	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -146,46 +148,77 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 		return reconcile.Result{}, fmt.Errorf("failed validation on MachineSet %q label selector, cannot match any machines ", machineSet.Name)
 	}
 
-	// Filter out irrelevant machines (deleting/mismatch labels) and claim orphaned machines.
-	var machineNames []string
-	machineSetMachines := make(map[string]*machinev1.Machine)
+	// Filter out irrelevant machines (deleting/mismatch labels)
+	machines := []*machinev1.Machine{}
 	for idx := range allMachines.Items {
 		machine := &allMachines.Items[idx]
 		if shouldExcludeMachine(machineSet, machine) {
 			continue
 		}
 
-		// Attempt to adopt machine if it meets previous conditions and it has no controller references.
-		if metav1.GetControllerOf(machine) == nil {
-			if err := r.adoptOrphan(machineSet, machine); err != nil {
-				klog.Warningf("Failed to adopt Machine %q into MachineSet %q: %v", machine.Name, machineSet.Name, err)
-				continue
-			}
-		}
-		machineNames = append(machineNames, machine.Name)
-		machineSetMachines[machine.Name] = machine
+		machines = append(machines, machine)
 	}
 
-	for msKey, msValue := range machineSet.Spec.Template.Spec.Labels {
-		presentInMachine := false
-
-		for _, m := range machineSetMachines {
-
-			for mKey, mValue := range m.Spec.Labels {
-				if mKey == msKey && mValue == msValue {
-					presentInMachine = true
-					klog.Info(fmt.Sprintf("Key, value %s:%s is already present in machine %s", mKey, mValue, m.Name))
-					break
-				}
+	for _, m := range machines {
+		// Loop through machines and compare labels with machiset
+		if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Labels, m.Spec.Labels) {
+			// Add labels to machine
+			m.Spec.Labels = machineSet.Spec.Template.Spec.Labels
+			err = r.Client.Update(ctx, m)
+			if err != nil {
+				klog.Errorf("failed to update label in %s", m.Name)
+				return reconcile.Result{}, err
 			}
-
-			if !presentInMachine {
-				m.Labels[msKey] = msValue
-				klog.Info(fmt.Sprintf("Key, value %s:%s is not present, adding to machine %s", msKey, msValue, m.Name))
-			}
-
+		}
+		// List node for machine
+		node := &v1.Node{}
+		err := r.Client.Get(ctx, request.NamespacedName, node)
+		if err != nil {
+			klog.Errorf("failed to fetch node for machine %s", m.Name)
+			return reconcile.Result{}, err
 		}
 
+		// Build temp map to store custom labels
+		customLabels := map[string]string{}
+
+		for ak, av := range node.Annotations {
+			for nk, nv := range node.Labels {
+				// If key:value pair is present in Annotations and Labels add to map
+				if nk == ak && nv == av {
+					customLabels[nk] = nv
+				}
+
+			}
+		}
+		// Compare custom labels in nodes with labels in machine
+		if !reflect.DeepEqual(m.Spec.Labels, customLabels) {
+			// Update custom labels with new machine labels added
+			if len(customLabels) <= len(m.Spec.Labels) {
+				customLabels = m.Spec.Labels
+			}
+		}
+
+		for ck, cv := range customLabels {
+			// Add new labels to node Annotations and Labels
+			_, ok := node.Annotations[ck]
+			if !ok {
+				node.Labels[ck] = cv
+				node.Annotations[ck] = cv
+				break
+			}
+			// Delete label if the node has a label that the machine doesn't have
+			_, ok = m.Spec.Labels[ck]
+			if !ok {
+				delete(node.Labels, ck)
+				delete(node.Annotations, ck)
+			}
+		}
+
+		err = r.Client.Update(ctx, node)
+		if err != nil {
+			klog.Errorf("failed to update label in %s", node.Name)
+			return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -208,12 +241,6 @@ func shouldExcludeMachine(machineSet *machinev1.MachineSet, machine *machinev1.M
 	}
 
 	return false
-}
-
-func (r *ReconcileMachineSet) adoptOrphan(machineSet *machinev1.MachineSet, machine *machinev1.Machine) error {
-	newRef := *metav1.NewControllerRef(machineSet, controllerKind)
-	machine.OwnerReferences = append(machine.OwnerReferences, newRef)
-	return r.Client.Update(context.Background(), machine)
 }
 
 func hasMatchingLabels(machineSet *machinev1.MachineSet, machine *machinev1.Machine) bool {
