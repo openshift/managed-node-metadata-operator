@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
 	v1 "k8s.io/api/core/v1"
@@ -27,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -114,6 +116,7 @@ func (r *ReconcileMachineSet) MachineToMachineSets(o client.Object) []reconcile.
 
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=,resources=nodes,verbs=get;list;watch;update;patch
 
 func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
@@ -170,48 +173,45 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 				return reconcile.Result{}, err
 			}
 		}
-		// List node for machine
+		// Get node for machine
+		if m.Status.NodeRef == nil || m.Status.NodeRef.Name == "" {
+			continue
+		}
 		node := &v1.Node{}
-		err := r.Client.Get(ctx, request.NamespacedName, node)
+		err := r.Client.Get(ctx, types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
 		if err != nil {
 			klog.Errorf("failed to fetch node for machine %s", m.Name)
 			return reconcile.Result{}, err
 		}
 
-		// Build temp map to store custom labels
-		customLabels := map[string]string{}
+		// Build temp map to store current custom labels in node
+		currentNodeLabels := map[string]string{}
 
-		for ak, av := range node.Annotations {
-			for nk, nv := range node.Labels {
-				// If key:value pair is present in Annotations and Labels add to map
-				if nk == ak && nv == av {
-					customLabels[nk] = nv
+		currentAnnotationValue, ok := node.Annotations["managed.openshift.com/customlabels"]
+		if ok {
+			for _, lk := range strings.Split(currentAnnotationValue, ",") {
+				if lv, nodeHasLabel := node.Labels[lk]; nodeHasLabel {
+					currentNodeLabels[lk] = lv
+					if _, machineHasLabel := m.Spec.Labels[lk]; !machineHasLabel {
+						klog.Info("deleting label in node")
+						delete(node.Labels, lk)
+					}
 				}
-
 			}
 		}
-		// Compare custom labels in nodes with labels in machine
-		if !reflect.DeepEqual(m.Spec.Labels, customLabels) {
+
+		// Compare custom labels with labels in machine
+		if !reflect.DeepEqual(m.Spec.Labels, currentNodeLabels) {
 			// Update custom labels with new machine labels added
-			if len(customLabels) <= len(m.Spec.Labels) {
-				customLabels = m.Spec.Labels
+			newAnnotationValue := ""
+			for newKey, newVal := range m.Spec.Labels {
+				node.Labels[newKey] = newVal
+				if newAnnotationValue != "" {
+					newAnnotationValue += ","
+				}
+				newAnnotationValue += newKey
 			}
-		}
-
-		for ck, cv := range customLabels {
-			// Add new labels to node Annotations and Labels
-			_, ok := node.Annotations[ck]
-			if !ok {
-				node.Labels[ck] = cv
-				node.Annotations[ck] = cv
-				break
-			}
-			// Delete label if the node has a label that the machine doesn't have
-			_, ok = m.Spec.Labels[ck]
-			if !ok {
-				delete(node.Labels, ck)
-				delete(node.Annotations, ck)
-			}
+			node.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
 		}
 
 		err = r.Client.Update(ctx, node)
