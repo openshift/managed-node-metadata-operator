@@ -41,7 +41,6 @@ import (
 
 var (
 	controllerName = "machineset_controller"
-	controllerKind = machinev1.SchemeGroupVersion.WithKind("MachineSet")
 )
 
 // Add creates a new MachineSet Controller and adds it to the Manager with default RBAC.
@@ -140,83 +139,21 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 		return reconcile.Result{}, fmt.Errorf("failed to list machines: %w", err)
 	}
 
-	// Make sure that label selector can match template's labels.
-	// TODO(vincepri): Move to a validation (admission) webhook when supported.
-	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
+	// Get machines for machineset
+	machines, err := getMachinesForMachineSets(machineSet, allMachines)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to parse MachineSet %q label selector: %w", machineSet.Name, err)
-	}
-
-	if !selector.Matches(labels.Set(machineSet.Spec.Template.Labels)) {
-		return reconcile.Result{}, fmt.Errorf("failed validation on MachineSet %q label selector, cannot match any machines ", machineSet.Name)
-	}
-
-	// Filter out irrelevant machines (deleting/mismatch labels)
-	machines := []*machinev1.Machine{}
-	for idx := range allMachines.Items {
-		machine := &allMachines.Items[idx]
-		if shouldExcludeMachine(machineSet, machine) {
-			continue
-		}
-
-		machines = append(machines, machine)
+		return reconcile.Result{}, err
 	}
 
 	for _, m := range machines {
-		// Loop through machines and compare labels with machiset
-		if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Labels, m.Spec.Labels) {
-			// Add labels to machine
-			m.Spec.Labels = machineSet.Spec.Template.Spec.Labels
-			err = r.Client.Update(ctx, m)
-			if err != nil {
-				klog.Errorf("failed to update label in %s", m.Name)
-				return reconcile.Result{}, err
-			}
-		}
-		// Get node for machine
-		if m.Status.NodeRef == nil || m.Status.NodeRef.Name == "" {
-			continue
-		}
-		node := &v1.Node{}
-		err := r.Client.Get(ctx, types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
+		// Update labels in machine
+		err = r.updateLabelsInMachine(ctx, machineSet, m)
 		if err != nil {
-			klog.Errorf("failed to fetch node for machine %s", m.Name)
 			return reconcile.Result{}, err
 		}
-
-		// Build temp map to store current custom labels in node
-		currentNodeLabels := map[string]string{}
-
-		currentAnnotationValue, ok := node.Annotations["managed.openshift.com/customlabels"]
-		if ok {
-			for _, lk := range strings.Split(currentAnnotationValue, ",") {
-				if lv, nodeHasLabel := node.Labels[lk]; nodeHasLabel {
-					currentNodeLabels[lk] = lv
-					if _, machineHasLabel := m.Spec.Labels[lk]; !machineHasLabel {
-						klog.Info("deleting label in node")
-						delete(node.Labels, lk)
-					}
-				}
-			}
-		}
-
-		// Compare custom labels with labels in machine
-		if !reflect.DeepEqual(m.Spec.Labels, currentNodeLabels) {
-			// Update custom labels with new machine labels added
-			newAnnotationValue := ""
-			for newKey, newVal := range m.Spec.Labels {
-				node.Labels[newKey] = newVal
-				if newAnnotationValue != "" {
-					newAnnotationValue += ","
-				}
-				newAnnotationValue += newKey
-			}
-			node.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
-		}
-
-		err = r.Client.Update(ctx, node)
+		//Update labels in node
+		err = r.updateLabelsInNode(ctx, m)
 		if err != nil {
-			klog.Errorf("failed to update label in %s", node.Name)
 			return reconcile.Result{}, err
 		}
 	}
@@ -286,4 +223,95 @@ func (c *ReconcileMachineSet) getMachineSetsForMachine(m *machinev1.Machine) []*
 	}
 
 	return mss
+}
+
+func getMachinesForMachineSets(machineSet *machinev1.MachineSet, allMachines *machinev1.MachineList) ([]*machinev1.Machine, error) {
+
+	// Make sure that label selector can match template's labels.
+	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse MachineSet %q label selector: %w", machineSet.Name, err)
+	}
+
+	if !selector.Matches(labels.Set(machineSet.Spec.Template.Labels)) {
+		return nil, fmt.Errorf("failed validation on MachineSet %q label selector, cannot match any machines ", machineSet.Name)
+	}
+
+	// Filter out irrelevant machines (deleting/mismatch labels)
+	machines := []*machinev1.Machine{}
+	for idx := range allMachines.Items {
+		machine := &allMachines.Items[idx]
+		if shouldExcludeMachine(machineSet, machine) {
+			continue
+		}
+
+		machines = append(machines, machine)
+	}
+
+	return machines, nil
+}
+
+func (r ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, machineSet *machinev1.MachineSet, m *machinev1.Machine) error {
+	// Loop through machines and compare labels with machiset
+	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Labels, m.Spec.Labels) {
+		// Add labels to machine
+		m.Spec.Labels = machineSet.Spec.Template.Spec.Labels
+		err := r.Client.Update(ctx, m)
+		if err != nil {
+			klog.Errorf("failed to update label in %s", m.Name)
+			return err
+		}
+	}
+	return nil
+}
+
+func (r ReconcileMachineSet) updateLabelsInNode(ctx context.Context, m *machinev1.Machine) error {
+	// Get node for machine
+	if m.Status.NodeRef == nil || m.Status.NodeRef.Name == "" {
+		return nil
+	}
+	node := &v1.Node{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
+	if err != nil {
+		klog.Errorf("failed to fetch node for machine %s", m.Name)
+		return err
+	}
+
+	// Build temp map to store current custom labels in node
+	currentNodeLabels := map[string]string{}
+	// Check node Annotations and compare with Labels to get custom labels
+	currentAnnotationValue, ok := node.Annotations["managed.openshift.com/customlabels"]
+	if ok {
+		for _, lk := range strings.Split(currentAnnotationValue, ",") {
+			if lv, nodeHasLabel := node.Labels[lk]; nodeHasLabel {
+				currentNodeLabels[lk] = lv
+				// Delete label if it's present in node but not in machine
+				if _, machineHasLabel := m.Spec.Labels[lk]; !machineHasLabel {
+					delete(node.Labels, lk)
+				}
+			}
+		}
+	}
+
+	// Compare custom labels with labels in machine
+	if !reflect.DeepEqual(m.Spec.Labels, currentNodeLabels) {
+		// Update Annotations and Labels when new labels are added in machine
+		newAnnotationValue := ""
+		for newKey, newVal := range m.Spec.Labels {
+			node.Labels[newKey] = newVal
+			if newAnnotationValue != "" {
+				newAnnotationValue += ","
+			}
+			newAnnotationValue += newKey
+		}
+		node.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
+	}
+
+	err = r.Client.Update(ctx, node)
+	if err != nil {
+		klog.Errorf("failed to update label in %s", node.Name)
+		return err
+	}
+
+	return nil
 }
