@@ -310,6 +310,7 @@ func TestUpdateLabelsinMachine(t *testing.T) {
 	}
 }
 
+// The test below is failing. WIP
 func TestUpdateLabelsInNode(t *testing.T) {
 	testCases := []struct {
 		machine     machinev1.Machine
