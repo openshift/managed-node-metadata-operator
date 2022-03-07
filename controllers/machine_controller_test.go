@@ -16,12 +16,15 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type mocks struct {
 	fakeKubeClient client.Client
 	mockCtrl       *gomock.Controller
 }
+
+var _ reconcile.Reconciler = &ReconcileMachineSet{}
 
 func TestShouldExcludeMachine(t *testing.T) {
 	controller := true
