@@ -313,7 +313,6 @@ func TestUpdateLabelsinMachine(t *testing.T) {
 	}
 }
 
-// The test below is failing. WIP
 func TestUpdateLabelsInNode(t *testing.T) {
 	testCases := []struct {
 		machine     machinev1.Machine
@@ -355,6 +354,70 @@ func TestUpdateLabelsInNode(t *testing.T) {
 				},
 			},
 		},
+		{
+			machine: machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test machineset",
+					Namespace: "test",
+				},
+				Spec: machinev1.MachineSpec{
+					ObjectMeta: machinev1.ObjectMeta{
+						Labels: map[string]string{},
+					},
+				},
+			},
+			node: v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-node",
+					Namespace: "test",
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+					Annotations: map[string]string{
+						"managed.openshift.com/customlabels": "foo",
+					},
+				},
+			},
+			updatedNode: v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-node",
+					Namespace:   "test",
+					Labels:      map[string]string{},
+					Annotations: map[string]string{},
+				},
+			},
+		},
+		{
+			machine: machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test machineset",
+					Namespace: "test",
+				},
+				Spec: machinev1.MachineSpec{
+					ObjectMeta: machinev1.ObjectMeta{
+						Labels: map[string]string{},
+					},
+				},
+			},
+			node: v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-node",
+					Namespace: "test",
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+					Annotations: map[string]string{},
+				},
+			},
+			updatedNode: v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-node",
+					Namespace:   "test",
+					Labels:      map[string]string{},
+					Annotations: map[string]string{},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -384,7 +447,7 @@ func TestUpdateLabelsInNode(t *testing.T) {
 			t.Error(err)
 		}
 
-		if !reflect.DeepEqual(tc.machine.Spec.Labels, tc.node.Labels) {
+		if !reflect.DeepEqual(tc.machine.Spec.Labels, tc.updatedNode.Labels) {
 			t.Errorf("Got: %v, expected %v", tc.node.Labels, tc.updatedNode.Labels)
 		}
 	}
