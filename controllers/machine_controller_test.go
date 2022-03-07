@@ -401,11 +401,9 @@ func TestUpdateLabelsInNode(t *testing.T) {
 			},
 			node: v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-node",
-					Namespace: "test",
-					Labels: map[string]string{
-						"foo": "bar",
-					},
+					Name:        "test-node",
+					Namespace:   "test",
+					Labels:      map[string]string{},
 					Annotations: map[string]string{},
 				},
 			},

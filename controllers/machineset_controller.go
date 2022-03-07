@@ -133,15 +133,8 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 		return reconcile.Result{}, err
 	}
 
-	allMachines := &machinev1.MachineList{}
-
-	err = r.Client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to list machines: %w", err)
-	}
-
 	// Get machines for machineset
-	machines, err := getMachinesForMachineSets(machineSet, allMachines)
+	machines, err := r.getMachinesForMachineSets(machineSet)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -226,8 +219,15 @@ func (c *ReconcileMachineSet) getMachineSetsForMachine(m *machinev1.Machine) []*
 	return mss
 }
 
-func getMachinesForMachineSets(machineSet *machinev1.MachineSet, allMachines *machinev1.MachineList) ([]*machinev1.Machine, error) {
+func (r *ReconcileMachineSet) getMachinesForMachineSets(machineSet *machinev1.MachineSet) ([]*machinev1.Machine, error) {
 
+	allMachines := &machinev1.MachineList{}
+
+	err := r.Client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
+	if err != nil {
+		klog.Error("Failed to list machines")
+		return nil, err
+	}
 	// Make sure that label selector can match template's labels.
 	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
 	if err != nil {
@@ -257,11 +257,11 @@ func (r ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, machineS
 	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Labels, m.Spec.Labels) {
 		// Add labels to machine
 		m.Spec.Labels = machineSet.Spec.Template.Spec.Labels
-		err := r.Client.Update(ctx, m)
-		if err != nil {
-			klog.Errorf("failed to update label in %s", m.Name)
-			return err
-		}
+	}
+	err := r.Client.Update(ctx, m)
+	if err != nil {
+		klog.Errorf("failed to update label in %s", m.Name)
+		return err
 	}
 	return nil
 }
