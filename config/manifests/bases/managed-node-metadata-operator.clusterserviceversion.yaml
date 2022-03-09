@@ -1,0 +1,45 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.2.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: managed-node-metadata-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: Automatically synchronizes metadata from MachineSets to Nodes
+  displayName: Managed Node Metadata Operator
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - operator-sdk
+  - golang
+  - sre
+  - node
+  - openshift-dedicated
+  - openshift
+  - redhat
+  links:
+  - name: Managed Node Metadata Operator
+    url: https://github.com/openshift/managed-node-metadata-operator/
+  maturity: alpha
+  provider:
+    name: Red Hat
+    url: https://www.redhat.com
+  replaces: managed-node-metadata-operator.v0.0.0
+  version: 0.0.0

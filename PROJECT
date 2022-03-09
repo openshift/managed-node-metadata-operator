@@ -1,0 +1,11 @@
+domain: managed.openshift.com
+layout: go.kubebuilder.io/v2
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}
+projectName: managed-node-metadata-operator
+repo: github.com/openshift/managed-node-metadata-operator
+resources:
+- group: machine.openshift.io
+  kind: Machineset
+  version: v1beta1
+version: "3-alpha"

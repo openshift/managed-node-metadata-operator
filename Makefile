@@ -12,6 +12,11 @@ op-generate openapi-generate: ;
 
 VERSION ?= $(OPERATOR_VERSION)
 PREV_VERSION ?= $(VERSION)
+PREV_VERSION_FLAG=--from-version
+ifeq (,$(PREV_VERSION))
+	PREV_VERSION_FLAG=
+endif
+PREV_VERSION ?= $(VERSION)
 
 IMAGE_TAG_BASE ?= $(OPERATOR_NAME)
 
@@ -188,12 +193,15 @@ bundle: manifests kustomize
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-packagemanifests: manifests kustomize pre-deploy
+cleanbin:
+	rm -rf bin
+
+packagemanifests: cleanbin manifests kustomize pre-deploy
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate packagemanifests -q \
 		--channel $(CHANNELS) \
 		--version $(VERSION) \
-		--from-version $(PREV_VERSION) \
+		$(PREV_VERSION_FLAG) $(PREV_VERSION) \
 		--input-dir $(BUNDLE_DIR) \
 		--output-dir $(BUNDLE_DIR) \
 
