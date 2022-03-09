@@ -1,7 +1,7 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest AS kustomize-builder
+FROM quay.io/operator-framework/operator-sdk:v1.2.0 AS operator-sdk
 
-RUN microdnf install -y golang make which
-RUN microdnf install -y git
+# We need git to clone our repo
+RUN microdnf install -y git gcc golang-1.16.12 make which
 
 # install kustomize
 RUN git clone https://github.com/kubernetes-sigs/kustomize.git
@@ -10,15 +10,8 @@ RUN cd kustomize && \
     cd kustomize && \
     go install .
 RUN ~/go/bin/kustomize version
-
-FROM quay.io/operator-framework/operator-sdk:v1.2.0
-
-# We need git to clone our repo
-RUN microdnf install -y git gcc glibc
 # Clean up after install
 RUN rm -rf /.cache
-# Copy kustomize binary from builder 
-COPY --from=kustomize-builder /root/go/bin/kustomize /usr/local/bin/kustomize
 
 # Set workdir so we have a known location to copy files from
 RUN mkdir /pipeline
