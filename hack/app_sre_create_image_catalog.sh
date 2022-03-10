@@ -27,10 +27,13 @@ git clone \
 # remove any versions more recent than deployed hash
 REMOVED_VERSIONS=""
 if [[ "$BRANCH_CHANNEL" == "production" ]]; then
-    DEPLOYED_HASH=$(
-        curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" | \
-            docker run --rm -i quay.io/app-sre/yq:3.4.1 yq r - "resourceTemplates[*].targets(namespace.\$ref==/services/osd-operators/namespaces/hivep01ue1/cluster-scope.yml).ref"
-    )
+    SAAS_FILE_EXISTS=$(curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" -o saasfile.yaml || echo $?)
+
+    if [[ "$SAAS_FILE_EXISTS" != "0" ]]; then
+        echo "Not deployed to production yet, exiting"
+        exit 0
+    fi
+    DEPLOYED_HASH=$(docker run --rm -i quay.io/app-sre/yq:3.4.1 yq r - "resourceTemplates[*].targets(namespace.\$ref==/services/osd-operators/namespaces/hivep01ue1/cluster-scope.yml).ref" < saasfile.yaml)
 
     # Ensure that our query for the current deployed hash worked
     # Validate that our DEPLOYED_HASH var isn't empty.
@@ -120,9 +123,11 @@ if [[ "$DRY_RUN" == "y" ]]; then
 fi
 
 
-pushd $SAAS_OPERATOR_DIR
-  git push origin "$BRANCH_CHANNEL"
-popd
+if [[ "$DRY_RUN" != "nopush" ]]; then
+    pushd $SAAS_OPERATOR_DIR
+    git push origin "$BRANCH_CHANNEL"
+    popd
+fi
 
 # push image
 skopeo copy --dest-creds "${QUAY_USER}:${QUAY_TOKEN}" \

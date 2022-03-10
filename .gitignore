@@ -7,9 +7,12 @@
 *.dylib
 bin
 
-# OLM Bundle
+.envrc
+
+# OLM Bundle and temp files
 bundle
 saas-managed-node-metadata-operator-bundle
+saasfile.yaml
 
 # Test binary, build with `go test -c`
 *.test
