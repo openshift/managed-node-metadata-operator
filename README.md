@@ -25,3 +25,27 @@ flowchart TD
       end
     end
 ```
+
+## Development
+
+### Running pipeline scripts locally
+
+The script that's run in the pipeline is located in [./hack/app_sre_build_deploy.sh].
+Make sure to have the following environment variables set when running it:
+
+```
+REGISTRY_TOKEN=... # Get from quay.io user settings "Generate encrypted password"
+REGISTRY_USER=... # quay.io username
+IMG=quay.io/$REGISTRY_USER/managed-node-metadata-operator
+IMAGE_REPOSITORY=$REGISTRY_USER
+CONTAINER_ENGINE=docker # Currently this script requires docker as container engine
+QUAY_IMAGE=$IMG
+QUAY_USER=$REGISTRY_TOKEN
+QUAY_TOKEN=$REGISTRY_TOKEN
+QUAY_USER=$REGISTRY_USER
+```
+
+Additionally setting `DRY_RUN=y` will skip the push to the OLM repository and image registry.
+Set `DRY_RUN=nopush` if you only want to skip the push to the OLM repository.
+
+Before running the script, ensure the repositories quay.io/$REGISTRY_USER/managed-node-metadata-operator and quay.io/$REGISTRY_USER/managed-node-metadata-operator-registry exist.

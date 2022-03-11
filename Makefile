@@ -179,10 +179,6 @@ add-kustomize-data: kustomize
 	mkdir $(YAML_DIRECTORY)
 	$(KUSTOMIZE) build config/olm/ > $(YAML_DIRECTORY)/00_olm-resources_generated.yaml
 
-.PHONY: generate-syncset
-generate-syncset: kustomize add-kustomize-data
-	hack/generate-syncset.sh
-
 # Generate bundle manifests and metadata, then validate generated files.
 bundle: manifests kustomize
 	$(OPERATOR_SDK) generate kustomize manifests -q

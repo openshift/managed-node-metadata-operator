@@ -1,4 +1,4 @@
-FROM quay.io/bitnami/golang:1.17 as builder
+FROM registry.ci.openshift.org/openshift/release:golang-1.17 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests

@@ -2,7 +2,7 @@
 
 # AppSRE team CD
 
-set -exv
+set -exvo pipefail
 
 CURRENT_DIR=$(dirname "$0")
 
