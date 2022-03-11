@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/openshift/release:golang-1.17 AS builder
+FROM quay.io/app-sre/boilerplate:image-v2.1.0 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
