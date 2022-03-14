@@ -213,6 +213,7 @@ syncset-install:
 			CHANNEL=$(CHANNELS) \
 			REGISTRY_IMG=$(REGISTRY_IMG) \
 			IMAGE_TAG=$(VERSION) \
+			IMAGE_DIGEST=$(IMAGE_DIGEST) \
 		| jq '{"kind": "List", "apiVersion": "v1", "items": .items[].spec.resources}' \
 		| kubectl apply -f -
 

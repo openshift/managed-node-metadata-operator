@@ -1,6 +1,7 @@
-apiVersion: operators.coreos.com/v1alpha2
+apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: ${REPO_NAME}
-targetNamespaces:
-  - openshift-machine-api
+spec:
+  targetNamespaces:
+    - openshift-machine-api
