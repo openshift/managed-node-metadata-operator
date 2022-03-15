@@ -37,6 +37,14 @@ objects:
         labels:
           openshift.io/cluster-monitoring: 'true'
         name: ${NAMESPACE}
+    - apiVersion: operators.coreos.com/v1
+      kind: OperatorGroup
+      metadata:
+        name: ${REPO_NAME}
+        namespace: ${NAMESPACE}
+      spec:
+        targetNamespaces:
+        - openshift-machine-api
     - apiVersion: operators.coreos.com/v1alpha1
       kind: CatalogSource
       metadata:
@@ -63,8 +71,3 @@ objects:
         name: ${REPO_NAME}
         source: ${REPO_NAME}-registry
         sourceNamespace: ${NAMESPACE}
-    - apiVersion: operators.coreos.com/v1alpha2
-      kind: OperatorGroup
-      metadata:
-        name: ${REPO_NAME}
-        namespace: ${NAMESPACE}

@@ -1,4 +1,4 @@
-FROM quay.io/bitnami/golang:1.17 as builder
+FROM quay.io/app-sre/boilerplate:image-v2.1.0 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
