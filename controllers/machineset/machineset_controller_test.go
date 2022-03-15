@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/golang/mock/gomock"
@@ -37,11 +37,6 @@ var _ = Describe("MachinesetController", func() {
 		r              *ReconcileMachineSet
 		ctx            context.Context
 	)
-
-	err := machinev1.AddToScheme(scheme.Scheme)
-	if err != nil {
-		fmt.Printf("failed adding apis to scheme in machineset controller tests")
-	}
 
 	Describe("Check if should exclude machine", func() {
 		controller := true
@@ -158,6 +153,11 @@ var _ = Describe("MachinesetController", func() {
 		})
 
 	})
+
+	err := machinev1.AddToScheme(scheme.Scheme)
+	if err != nil {
+		fmt.Printf("failed adding apis to scheme in machineset controller tests")
+	}
 
 	Describe("Updating labels in machine", func() {
 		var (
