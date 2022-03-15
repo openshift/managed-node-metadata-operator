@@ -43,27 +43,10 @@ var _ = Describe("MachinesetController", func() {
 		fmt.Printf("failed adding apis to scheme in machineset controller tests")
 	}
 
-	BeforeEach(func() {
-		localObjects := []runtime.Object{
-			&machine,
-			&node,
-		}
-		mockObjects = &mocks{
-			fakeKubeClient: fake.NewFakeClient(localObjects...),
-			mockCtrl:       gomock.NewController(GinkgoT()),
-		}
-
-		r = &ReconcileMachineSet{
-			mockObjects.fakeKubeClient,
-			scheme.Scheme,
-			record.NewFakeRecorder(32),
-		}
-	})
-
 	Describe("Check if should exclude machine", func() {
 		controller := true
-
 		Context("When machine has no matching owner reference", func() {
+
 			machineSet = machinev1.MachineSet{}
 			machine = machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
@@ -221,6 +204,21 @@ var _ = Describe("MachinesetController", func() {
 					},
 				},
 			}
+
+			localObjects := []runtime.Object{
+				&machineSet,
+				&machine,
+			}
+			mockObjects = &mocks{
+				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				mockCtrl:       gomock.NewController(GinkgoT()),
+			}
+
+			r = &ReconcileMachineSet{
+				mockObjects.fakeKubeClient,
+				scheme.Scheme,
+				record.NewFakeRecorder(32),
+			}
 		})
 
 		Context("When new label is added to machineset", func() {
@@ -296,6 +294,21 @@ var _ = Describe("MachinesetController", func() {
 					Labels:      updatedLabelsInNode,
 					Annotations: updatedLabelsInNode,
 				},
+			}
+
+			localObjects := []runtime.Object{
+				&machine,
+				&node,
+			}
+			mockObjects = &mocks{
+				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				mockCtrl:       gomock.NewController(GinkgoT()),
+			}
+
+			r = &ReconcileMachineSet{
+				mockObjects.fakeKubeClient,
+				scheme.Scheme,
+				record.NewFakeRecorder(32),
 			}
 		})
 
