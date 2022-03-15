@@ -20,17 +20,17 @@ import (
 	"flag"
 	"os"
 
+	machinev1 "github.com/openshift/api/machine/v1beta1"
+	"github.com/openshift/managed-node-metadata-operator/controllers"
+	"github.com/openshift/managed-node-metadata-operator/controllers/machineset"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	machinev1 "github.com/openshift/api/machine/v1beta1"
-	"github.com/openshift/managed-node-metadata-operator/controllers"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	// +kubebuilder:scaffold:imports
 )
@@ -84,7 +84,7 @@ func main() {
 	}
 
 	// Setup all Controllers
-	if err := controllers.AddToManager(mgr, opts, controllers.Add); err != nil {
+	if err := controllers.AddToManager(mgr, opts, machineset.Add); err != nil {
 		klog.Fatal(err)
 	}
 

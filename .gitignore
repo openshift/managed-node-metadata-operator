@@ -26,3 +26,6 @@ saas-managed-node-metadata-operator-bundle
 *.swp
 *.swo
 *~
+
+# ENV variables file
+.envrc
