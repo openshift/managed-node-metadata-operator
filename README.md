@@ -51,3 +51,15 @@ Additionally setting `DRY_RUN=y` will skip the push to the OLM repository and im
 Set `DRY_RUN=nopush` if you only want to skip the push to the OLM repository.
 
 Before running the script, ensure the repositories quay.io/$REGISTRY_USER/managed-node-metadata-operator and quay.io/$REGISTRY_USER/managed-node-metadata-operator-registry exist.
+
+### Running integration tests
+
+Integration tests use the same client library as the operator itself.
+You can run them against an OpenShift cluster by running the go tests in the `int` folder:
+
+```
+go run -count=1 ./int/...
+```
+
+Make sure to exclude them when running unit tests.
+They are excluded when running `make test` by default.
