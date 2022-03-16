@@ -32,3 +32,4 @@ saasfile.yaml
 
 # ENV variables file
 .envrc
+.vscode

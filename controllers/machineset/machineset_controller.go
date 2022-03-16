@@ -18,17 +18,13 @@ package machineset
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"strings"
 
 	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
-	v1 "k8s.io/api/core/v1"
+	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +43,7 @@ var (
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
 func Add(mgr manager.Manager, opts manager.Options) error {
 	r := newReconciler(mgr)
-	return add(mgr, r, r.MachineToMachineSets)
+	return add(mgr, r)
 }
 
 // newReconciler returns a new reconcile.Reconciler.
@@ -56,7 +52,7 @@ func newReconciler(mgr manager.Manager) *ReconcileMachineSet {
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler.
-func add(mgr manager.Manager, r reconcile.Reconciler, mapFn handler.MapFunc) error {
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller.
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -83,36 +79,6 @@ type ReconcileMachineSet struct {
 	recorder record.EventRecorder
 }
 
-func (r *ReconcileMachineSet) MachineToMachineSets(o client.Object) []reconcile.Request {
-	result := []reconcile.Request{}
-	m := &machinev1.Machine{}
-	key := client.ObjectKey{Namespace: o.GetNamespace(), Name: o.GetName()}
-	err := r.Client.Get(context.Background(), key, m)
-	if err != nil {
-		klog.Errorf("Unable to retrieve Machine %v from store: %v", key, err)
-		return nil
-	}
-
-	for _, ref := range m.ObjectMeta.OwnerReferences {
-		if ref.Controller != nil && *ref.Controller {
-			return result
-		}
-	}
-
-	mss := r.getMachineSetsForMachine(m)
-	if len(mss) == 0 {
-		klog.V(4).Infof("Found no machine set for machine: %v", m.Name)
-		return nil
-	}
-
-	for _, ms := range mss {
-		name := client.ObjectKey{Namespace: ms.Namespace, Name: ms.Name}
-		result = append(result, reconcile.Request{NamespacedName: name})
-	}
-
-	return result
-}
-
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/status,verbs=get;update;patch
@@ -134,7 +100,7 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 	}
 
 	// Get machines for machineset
-	machines, err := r.getMachinesForMachineSets(machineSet)
+	machines, err := m.GetMachinesForMachineSet(r, machineSet)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -155,105 +121,8 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 	return reconcile.Result{}, nil
 }
 
-// shouldExcludeMachine returns true if the machine should be filtered out, false otherwise.
-func shouldExcludeMachine(machineSet *machinev1.MachineSet, machine *machinev1.Machine) bool {
-	// Ignore inactive machines.
-	if metav1.GetControllerOf(machine) != nil && !metav1.IsControlledBy(machine, machineSet) {
-		klog.V(4).Infof("%s not controlled by %v", machine.Name, machineSet.Name)
-		return true
-	}
-
-	if machine.ObjectMeta.DeletionTimestamp != nil {
-		return true
-	}
-
-	if !hasMatchingLabels(machineSet, machine) {
-		return true
-	}
-
-	return false
-}
-
-func hasMatchingLabels(machineSet *machinev1.MachineSet, machine *machinev1.Machine) bool {
-	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
-	if err != nil {
-		klog.Warningf("unable to convert selector: %v", err)
-		return false
-	}
-
-	// If a deployment with a nil or empty selector creeps in, it should match nothing, not everything.
-	if selector.Empty() {
-		klog.V(2).Infof("%v machineset has empty selector", machineSet.Name)
-		return false
-	}
-
-	if !selector.Matches(labels.Set(machine.Labels)) {
-		klog.V(4).Infof("%v machine has mismatch labels", machine.Name)
-		return false
-	}
-
-	return true
-}
-
-func (c *ReconcileMachineSet) getMachineSetsForMachine(m *machinev1.Machine) []*machinev1.MachineSet {
-	if len(m.Labels) == 0 {
-		klog.Warningf("No machine sets found for Machine %v because it has no labels", m.Name)
-		return nil
-	}
-
-	msList := &machinev1.MachineSetList{}
-	err := c.Client.List(context.Background(), msList, client.InNamespace(m.Namespace))
-	if err != nil {
-		klog.Errorf("Failed to list machine sets, %v", err)
-		return nil
-	}
-
-	var mss []*machinev1.MachineSet
-	for idx := range msList.Items {
-		ms := &msList.Items[idx]
-		if hasMatchingLabels(ms, m) {
-			mss = append(mss, ms)
-		}
-	}
-
-	return mss
-}
-
-func (r *ReconcileMachineSet) getMachinesForMachineSets(machineSet *machinev1.MachineSet) ([]*machinev1.Machine, error) {
-
-	allMachines := &machinev1.MachineList{}
-
-	err := r.Client.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
-	if err != nil {
-		klog.Error("Failed to list machines")
-		return nil, err
-	}
-	// Make sure that label selector can match template's labels.
-	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse MachineSet %q label selector: %w", machineSet.Name, err)
-	}
-
-	if !selector.Matches(labels.Set(machineSet.Spec.Template.Labels)) {
-		return nil, fmt.Errorf("failed validation on MachineSet %q label selector, cannot match any machines ", machineSet.Name)
-	}
-
-	// Filter out irrelevant machines (deleting/mismatch labels)
-	machines := []*machinev1.Machine{}
-	for idx := range allMachines.Items {
-		machine := &allMachines.Items[idx]
-		if shouldExcludeMachine(machineSet, machine) {
-			continue
-		}
-
-		machines = append(machines, machine)
-	}
-
-	return machines, nil
-}
-
 func (r ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, machineSet *machinev1.MachineSet, m *machinev1.Machine) error {
-	// Loop through machines and compare labels with machiset
+	// Loop through machines and compare labels with machineset
 	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Labels, m.Spec.Labels) {
 		// Add labels to machine
 		m.Spec.Labels = machineSet.Spec.Template.Spec.Labels
@@ -266,15 +135,13 @@ func (r ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, machineS
 	return nil
 }
 
-func (r ReconcileMachineSet) updateLabelsInNode(ctx context.Context, m *machinev1.Machine) error {
-	// Get node for machine
-	if m.Status.NodeRef == nil || m.Status.NodeRef.Name == "" {
+func (r *ReconcileMachineSet) updateLabelsInNode(ctx context.Context, machine *machinev1.Machine) error {
+	if machine.Status.NodeRef == nil || machine.Status.NodeRef.Name == "" {
 		return nil
 	}
-	node := &v1.Node{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
+	node, err := m.GetNodeForMachine(r, machine)
 	if err != nil {
-		klog.Errorf("failed to fetch node for machine %s", m.Name)
+		klog.Errorf("failed to fetch node for machine %s", machine.Name)
 		return err
 	}
 
@@ -287,7 +154,7 @@ func (r ReconcileMachineSet) updateLabelsInNode(ctx context.Context, m *machinev
 			if lv, nodeHasLabel := node.Labels[lk]; nodeHasLabel {
 				currentNodeLabels[lk] = lv
 				// Delete label if it's present in node but not in machine
-				if _, machineHasLabel := m.Spec.Labels[lk]; !machineHasLabel {
+				if _, machineHasLabel := machine.Spec.Labels[lk]; !machineHasLabel {
 					delete(node.Labels, lk)
 				}
 			}
@@ -295,10 +162,10 @@ func (r ReconcileMachineSet) updateLabelsInNode(ctx context.Context, m *machinev
 	}
 
 	// Compare custom labels with labels in machine
-	if !reflect.DeepEqual(m.Spec.Labels, currentNodeLabels) {
+	if !reflect.DeepEqual(machine.Spec.Labels, currentNodeLabels) {
 		// Update Annotations and Labels when new labels are added in machine
 		newAnnotationValue := ""
-		for newKey, newVal := range m.Spec.Labels {
+		for newKey, newVal := range machine.Spec.Labels {
 			node.Labels[newKey] = newVal
 			if newAnnotationValue != "" {
 				newAnnotationValue += ","
@@ -308,7 +175,7 @@ func (r ReconcileMachineSet) updateLabelsInNode(ctx context.Context, m *machinev
 		node.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
 	}
 
-	err = r.Client.Update(ctx, node)
+	err = r.Client.Update(ctx, &node)
 	if err != nil {
 		klog.Errorf("failed to update label in %s", node.Name)
 		return err

@@ -16,14 +16,12 @@ flowchart TD
     B --> C;
     subgraph Managed Node Metadata Operator
       C[MNMO Picks up change to MachineSet and begins reconcile] --> D[Loop through all Machines in Machineset and Sync Label/Taint changes];
-      subgraph m1
         D --> E[Remove Taints/Labels not present in MachineSet and present on Machine];
+      subgraph Per Machine
         E --> F[Apply Taints/Labels present in MachineSet and not present on Machine];
-      end
-      C --> G[Loop through all Nodes in MachineSet and sync Label/Taint changes];
-      subgraph n1
-        G --> H[Remove Taints/Labels not presnet in MachineSet and present on Node];
-        H --> I[Apply Taints/Labels present in MachineSet and not present on Node];
+        F --> G[Get referenced Node]
+        G --> H[Remove Taints/Labels not present in Machine and present on Node];
+        H --> I[Apply Taints/Labels present in Machine and not present on Node];
       end
     end
 ```
@@ -51,3 +49,15 @@ Additionally setting `DRY_RUN=y` will skip the push to the OLM repository and im
 Set `DRY_RUN=nopush` if you only want to skip the push to the OLM repository.
 
 Before running the script, ensure the repositories quay.io/$REGISTRY_USER/managed-node-metadata-operator and quay.io/$REGISTRY_USER/managed-node-metadata-operator-registry exist.
+
+### Running integration tests
+
+Integration tests use the same client library as the operator itself.
+You can run them against an OpenShift cluster by running the go tests in the `int` folder:
+
+```
+go run -count=1 ./int/...
+```
+
+Make sure to exclude them when running unit tests.
+They are excluded when running `make test` by default.
