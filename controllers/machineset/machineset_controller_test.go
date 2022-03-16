@@ -116,46 +116,46 @@ var _ = Describe("MachinesetController", func() {
 	})
 
 	Describe("Check if machine has matching labels with machineset", func() {
+		var (
+			labelsInMachine    map[string]string
+			labelsInMachineset map[string]string
+		)
 
-		Context("When there are matching labels", func() {
+		BeforeEach(func() {
 			machineSet = machinev1.MachineSet{
 				Spec: machinev1.MachineSetSpec{
 					Selector: metav1.LabelSelector{
-						MatchLabels: map[string]string{"foo": "bar"},
+						MatchLabels: labelsInMachineset,
 					},
 				},
 			}
 			machine = machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   "matchSelector",
-					Labels: map[string]string{"foo": "bar"},
+					Labels: labelsInMachine,
 				},
 			}
-
-			It("should return true", func() {
-				res := hasMatchingLabels(&machineSet, &machine)
-				Expect(res).To(Equal(true))
-			})
 		})
 
 		Context("When there are no matching labels", func() {
-			machineSet = machinev1.MachineSet{
-				Spec: machinev1.MachineSetSpec{
-					Selector: metav1.LabelSelector{
-						MatchLabels: map[string]string{"foo": "bar"},
-					},
-				},
-			}
-			machine = machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   "matchSelector",
-					Labels: map[string]string{"no": "match"},
-				},
-			}
+
+			labelsInMachine = map[string]string{"foo": "bar"}
+			labelsInMachineset = map[string]string{"no": "bar"}
 
 			It("should return false", func() {
 				res := hasMatchingLabels(&machineSet, &machine)
 				Expect(res).To(Equal(false))
+			})
+		})
+
+		Context("When there are matching labels", func() {
+
+			labelsInMachine = map[string]string{"foo": "bar"}
+			labelsInMachineset = map[string]string{"foo": "bar"}
+
+			It("should return true", func() {
+				res := hasMatchingLabels(&machineSet, &machine)
+				Expect(res).To(Equal(true))
 			})
 		})
 
