@@ -1,4 +1,4 @@
-package machineset_test
+package machine_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestMachineset(t *testing.T) {
+func TestMachine(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Machinset Suite")
+	RunSpecs(t, "Machine Suite")
 }

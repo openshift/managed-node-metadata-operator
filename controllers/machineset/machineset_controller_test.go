@@ -3,7 +3,6 @@ package machineset
 import (
 	"context"
 	"fmt"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -42,124 +41,6 @@ var _ = Describe("MachinesetController", func() {
 	if err != nil {
 		fmt.Printf("failed adding apis to scheme in machineset controller tests")
 	}
-
-	Describe("Check if should exclude machine", func() {
-		controller := true
-		Context("When machine has no matching owner reference", func() {
-
-			machineSet = machinev1.MachineSet{}
-			machine = machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "withNoMatchingOwnerRef",
-					Namespace: "test",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Name:       "Owner",
-							Kind:       "MachineSet",
-							Controller: &controller,
-						},
-					},
-				},
-			}
-
-			It("should exclude machine", func() {
-				res := shouldExcludeMachine(&machineSet, &machine)
-				Expect(res).To(Equal(true))
-			})
-		})
-
-		Context("When machine has matching labels", func() {
-			machineSet = machinev1.MachineSet{
-				Spec: machinev1.MachineSetSpec{
-					Selector: metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-			}
-			machine = machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "withMatchingLabels",
-					Namespace: "test",
-					Labels: map[string]string{
-						"foo": "bar",
-					},
-				},
-			}
-
-			It("should not exclude machine", func() {
-				res := shouldExcludeMachine(&machineSet, &machine)
-				Expect(res).To(Equal(false))
-			})
-		})
-
-		Context("When machine has deletion time stamp", func() {
-			machineSet = machinev1.MachineSet{}
-			machine = machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:              "withDeletionTimestamp",
-					Namespace:         "test",
-					DeletionTimestamp: &metav1.Time{Time: time.Now()},
-					Labels: map[string]string{
-						"foo": "bar",
-					},
-				},
-			}
-
-			It("should exclude machine", func() {
-				res := shouldExcludeMachine(&machineSet, &machine)
-				Expect(res).To(Equal(true))
-			})
-		})
-
-	})
-
-	Describe("Check if machine has matching labels with machineset", func() {
-		var (
-			labelsInMachine    map[string]string
-			labelsInMachineset map[string]string
-		)
-
-		BeforeEach(func() {
-			machineSet = machinev1.MachineSet{
-				Spec: machinev1.MachineSetSpec{
-					Selector: metav1.LabelSelector{
-						MatchLabels: labelsInMachineset,
-					},
-				},
-			}
-			machine = machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   "matchSelector",
-					Labels: labelsInMachine,
-				},
-			}
-		})
-
-		Context("When there are no matching labels", func() {
-
-			labelsInMachine = map[string]string{"foo": "bar"}
-			labelsInMachineset = map[string]string{"no": "bar"}
-
-			It("should return false", func() {
-				res := hasMatchingLabels(&machineSet, &machine)
-				Expect(res).To(Equal(false))
-			})
-		})
-
-		Context("When there are matching labels", func() {
-
-			labelsInMachine = map[string]string{"foo": "bar"}
-			labelsInMachineset = map[string]string{"foo": "bar"}
-
-			It("should return true", func() {
-				res := hasMatchingLabels(&machineSet, &machine)
-				Expect(res).To(Equal(true))
-			})
-		})
-
-	})
 
 	Describe("Updating labels in machine", func() {
 		var (
