@@ -38,6 +38,11 @@ var _ = Describe("MachinesetController", func() {
 		ctx            context.Context
 	)
 
+	err := machinev1.AddToScheme(scheme.Scheme)
+	if err != nil {
+		fmt.Printf("failed adding apis to scheme in machineset controller tests")
+	}
+
 	Describe("Check if should exclude machine", func() {
 		controller := true
 		Context("When machine has no matching owner reference", func() {
@@ -111,30 +116,21 @@ var _ = Describe("MachinesetController", func() {
 	})
 
 	Describe("Check if machine has matching labels with machineset", func() {
-		var (
-			labelsInMachineset map[string]string
-			labelsInMachine    map[string]string
-		)
 
-		BeforeEach(func() {
+		Context("When there are matching labels", func() {
 			machineSet = machinev1.MachineSet{
 				Spec: machinev1.MachineSetSpec{
 					Selector: metav1.LabelSelector{
-						MatchLabels: labelsInMachineset,
+						MatchLabels: map[string]string{"foo": "bar"},
 					},
 				},
 			}
 			machine = machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   "matchSelector",
-					Labels: labelsInMachine,
+					Labels: map[string]string{"foo": "bar"},
 				},
 			}
-		})
-
-		Context("When there are matching labels", func() {
-			labelsInMachineset = map[string]string{"foo": "bar"}
-			labelsInMachine = map[string]string{"foo": "bar"}
 
 			It("should return true", func() {
 				res := hasMatchingLabels(&machineSet, &machine)
@@ -143,8 +139,19 @@ var _ = Describe("MachinesetController", func() {
 		})
 
 		Context("When there are no matching labels", func() {
-			labelsInMachineset = map[string]string{"foo": "bar"}
-			labelsInMachine = map[string]string{"no": "match"}
+			machineSet = machinev1.MachineSet{
+				Spec: machinev1.MachineSetSpec{
+					Selector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"foo": "bar"},
+					},
+				},
+			}
+			machine = machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "matchSelector",
+					Labels: map[string]string{"no": "match"},
+				},
+			}
 
 			It("should return false", func() {
 				res := hasMatchingLabels(&machineSet, &machine)
@@ -153,11 +160,6 @@ var _ = Describe("MachinesetController", func() {
 		})
 
 	})
-
-	err := machinev1.AddToScheme(scheme.Scheme)
-	if err != nil {
-		fmt.Printf("failed adding apis to scheme in machineset controller tests")
-	}
 
 	Describe("Updating labels in machine", func() {
 		var (
@@ -219,6 +221,10 @@ var _ = Describe("MachinesetController", func() {
 				scheme.Scheme,
 				record.NewFakeRecorder(32),
 			}
+		})
+
+		AfterEach(func() {
+			mockObjects.mockCtrl.Finish()
 		})
 
 		Context("When new label is added to machineset", func() {
@@ -310,6 +316,10 @@ var _ = Describe("MachinesetController", func() {
 				scheme.Scheme,
 				record.NewFakeRecorder(32),
 			}
+		})
+
+		AfterEach(func() {
+			mockObjects.mockCtrl.Finish()
 		})
 
 		Context("When new label is added to machine", func() {
