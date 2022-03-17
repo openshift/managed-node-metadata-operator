@@ -111,8 +111,18 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+		// Update taints in machine
+		err = r.updateTaintsInMachine(ctx, machineSet, m)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		//Update labels in node
 		err = r.updateLabelsInNode(ctx, m)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		// Update taints in node
+		err = r.updateTaintsInNode(ctx, m)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -122,7 +132,7 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 }
 
 func (r ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, machineSet *machinev1.MachineSet, m *machinev1.Machine) error {
-	// Loop through machines and compare labels with machineset
+	// Compare labels of machineset vs machine
 	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Labels, m.Spec.Labels) {
 		// Add labels to machine
 		m.Spec.Labels = machineSet.Spec.Template.Spec.Labels
@@ -130,6 +140,20 @@ func (r ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, machineS
 	err := r.Client.Update(ctx, m)
 	if err != nil {
 		klog.Errorf("failed to update label in %s", m.Name)
+		return err
+	}
+	return nil
+}
+
+func (r ReconcileMachineSet) updateTaintsInMachine(ctx context.Context, machineSet *machinev1.MachineSet, m *machinev1.Machine) error {
+	// Compare labels of machineset vs machine and update them if they're not the same
+	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Taints, m.Spec.Taints) {
+		m.Spec.Taints = machineSet.Spec.Template.Spec.Taints
+	}
+
+	err := r.Client.Update(ctx, m)
+	if err != nil {
+		klog.Errorf("failed to update taint in %s", m.Name)
 		return err
 	}
 	return nil
@@ -181,5 +205,29 @@ func (r *ReconcileMachineSet) updateLabelsInNode(ctx context.Context, machine *m
 		return err
 	}
 
+	return nil
+}
+
+func (r ReconcileMachineSet) updateTaintsInNode(ctx context.Context, machine *machinev1.Machine) error {
+
+	if machine.Status.NodeRef == nil || machine.Status.NodeRef.Name == "" {
+		return nil
+	}
+	node, err := m.GetNodeForMachine(r, machine)
+	if err != nil {
+		klog.Errorf("failed to fetch node for machine %s", machine.Name)
+		return err
+	}
+
+	// Compare labels of machineset vs machine and update them if they're not the same
+	if !reflect.DeepEqual(machine.Spec.Taints, node.Spec.Taints) {
+		node.Spec.Taints = machine.Spec.Taints
+	}
+
+	err = r.Client.Update(ctx, &node)
+	if err != nil {
+		klog.Errorf("failed to update taint in %s", node.Name)
+		return err
+	}
 	return nil
 }

@@ -146,6 +146,121 @@ var _ = Describe("MachinesetController", func() {
 
 	})
 
+	Describe("Updating taints in machine", func() {
+		var (
+			newTaintsInMachineSet   []v1.Taint
+			existingTaintsInMachine []v1.Taint
+			updatedTaintsInMachine  []v1.Taint
+		)
+
+		BeforeEach(func() {
+			machineSet = machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test machineset",
+					Namespace: "test",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Template: machinev1.MachineTemplateSpec{
+						Spec: machinev1.MachineSpec{
+							Taints: newTaintsInMachineSet,
+						},
+					},
+				},
+			}
+			machine = machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test machineset",
+					Namespace: "test",
+				},
+				Spec: machinev1.MachineSpec{
+					Taints: existingTaintsInMachine,
+				},
+			}
+			updatedMachine = machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test machineset",
+					Namespace: "test",
+				},
+				Spec: machinev1.MachineSpec{
+					Taints: updatedTaintsInMachine,
+				},
+			}
+
+			localObjects := []runtime.Object{
+				&machineSet,
+				&machine,
+			}
+			mockObjects = &mocks{
+				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				mockCtrl:       gomock.NewController(GinkgoT()),
+			}
+
+			r = &ReconcileMachineSet{
+				mockObjects.fakeKubeClient,
+				scheme.Scheme,
+				record.NewFakeRecorder(32),
+			}
+		})
+
+		AfterEach(func() {
+			mockObjects.mockCtrl.Finish()
+		})
+
+		Context("When new label is added to machineset", func() {
+			newTaintsInMachineSet = []v1.Taint{
+				v1.Taint{
+					Effect: v1.TaintEffectPreferNoSchedule,
+					Value:  "bar",
+					Key:    "foo",
+				},
+			}
+			existingTaintsInMachine = []v1.Taint{}
+			updatedTaintsInMachine = []v1.Taint{
+				v1.Taint{
+					Effect: v1.TaintEffectPreferNoSchedule,
+					Value:  "bar",
+					Key:    "foo",
+				},
+			}
+
+			It("should update taints in machine", func() {
+				err = r.updateTaintsInMachine(ctx, &machineSet, &machine)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(machine.Spec.Taints).To(Equal(updatedMachine.Spec.Taints))
+			})
+		})
+
+		Context("When taint is deleted from machinset", func() {
+			newTaintsInMachineSet = []v1.Taint{}
+			existingTaintsInMachine = []v1.Taint{
+				v1.Taint{
+					Effect: v1.TaintEffectPreferNoSchedule,
+					Value:  "bar",
+					Key:    "foo",
+				}}
+			updatedTaintsInMachine = []v1.Taint{}
+
+			It("should delete taint in machine", func() {
+				err = r.updateLabelsInMachine(ctx, &machineSet, &machine)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(machine.Spec.Taints).To(Equal(updatedMachine.Spec.Taints))
+			})
+		})
+
+		Context("When no new taint is added to machineset", func() {
+			newTaintsInMachineSet = []v1.Taint{}
+			existingTaintsInMachine = []v1.Taint{}
+			updatedTaintsInMachine = []v1.Taint{}
+
+			It("should not change taints", func() {
+				err = r.updateLabelsInMachine(ctx, &machineSet, &machine)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(machine.Spec.Taints).To(Equal(updatedMachine.Spec.Taints))
+			})
+		})
+
+	})
+
 	Describe("Updating labels in node", func() {
 		var (
 			newLabelsInMachine   map[string]string
@@ -156,7 +271,7 @@ var _ = Describe("MachinesetController", func() {
 		BeforeEach(func() {
 			machine = machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test machineset",
+					Name:      "test machine",
 					Namespace: "test",
 				},
 				Spec: machinev1.MachineSpec{
@@ -241,4 +356,115 @@ var _ = Describe("MachinesetController", func() {
 
 	})
 
+	Describe("Updating taints in node", func() {
+		var (
+			newTaintsInMachine   []v1.Taint
+			existingTaintsInNode []v1.Taint
+			updatedTaintsInNode  []v1.Taint
+		)
+
+		BeforeEach(func() {
+			machine = machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test machine",
+					Namespace: "test",
+				},
+				Spec: machinev1.MachineSpec{
+					Taints: newTaintsInMachine,
+				},
+			}
+			node = v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-node",
+					Namespace: "test",
+				},
+				Spec: v1.NodeSpec{
+					Taints: existingTaintsInNode,
+				},
+			}
+
+			updatedNode = v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-node",
+					Namespace: "test",
+				},
+				Spec: v1.NodeSpec{
+					Taints: updatedTaintsInNode,
+				},
+			}
+
+			localObjects := []runtime.Object{
+				&machine,
+				&node,
+			}
+			mockObjects = &mocks{
+				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				mockCtrl:       gomock.NewController(GinkgoT()),
+			}
+
+			r = &ReconcileMachineSet{
+				mockObjects.fakeKubeClient,
+				scheme.Scheme,
+				record.NewFakeRecorder(32),
+			}
+		})
+
+		AfterEach(func() {
+			mockObjects.mockCtrl.Finish()
+		})
+
+		Context("When new taint is added to machine", func() {
+			newTaintsInMachine = []v1.Taint{
+				v1.Taint{
+					Effect: v1.TaintEffectPreferNoSchedule,
+					Value:  "bar",
+					Key:    "foo",
+				},
+			}
+			existingTaintsInNode = []v1.Taint{}
+			updatedTaintsInNode = []v1.Taint{
+				v1.Taint{
+					Effect: v1.TaintEffectPreferNoSchedule,
+					Value:  "bar",
+					Key:    "foo",
+				},
+			}
+
+			It("should update taints in node", func() {
+				err = r.updateTaintsInNode(ctx, &machine)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
+			})
+		})
+
+		Context("When taint is deleted from machinset", func() {
+			newTaintsInMachine = []v1.Taint{}
+			existingTaintsInNode = []v1.Taint{
+				v1.Taint{
+					Effect: v1.TaintEffectPreferNoSchedule,
+					Value:  "bar",
+					Key:    "foo",
+				}}
+			updatedTaintsInNode = []v1.Taint{}
+
+			It("should delete taint in node", func() {
+				err = r.updateTaintsInNode(ctx, &machine)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
+			})
+		})
+
+		Context("When no new taint is added to machine", func() {
+			newTaintsInMachine = []v1.Taint{}
+			existingTaintsInNode = []v1.Taint{}
+			updatedTaintsInNode = []v1.Taint{}
+
+			It("should not change taints", func() {
+				err = r.updateTaintsInNode(ctx, &machine)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
+			})
+		})
+
+	})
 })
