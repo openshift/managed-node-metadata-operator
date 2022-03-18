@@ -100,6 +100,10 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 		return reconcile.Result{}, err
 	}
 
+	return r.ProcessMachineSet(ctx, machineSet)
+}
+
+func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet *machinev1.MachineSet) (reconcile.Result, error) {
 	// Get machines for machineset
 	machines, err := m.GetMachinesForMachineSet(r, machineSet)
 	if err != nil {
@@ -115,7 +119,7 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 			klog.Errorf("failed to fetch node for machine %s", machine.Name)
 			return reconcile.Result{}, err
 		}
-		expectedLabels := r.getExpectedLabels(ctx, machineSet, machine, &node)
+		expectedLabels := r.getExpectedLabels(ctx, machineSet, machine, node)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -125,16 +129,15 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 			return reconcile.Result{}, err
 		}
 		//Update labels in node
-		err = r.updateLabelsInNode(ctx, &node, expectedLabels)
+		err = r.updateLabelsInNode(ctx, node, expectedLabels)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	}
-
 	return reconcile.Result{}, nil
 }
 
-func (r ReconcileMachineSet) getExpectedLabels(ctx context.Context, machineSet *machinev1.MachineSet, machine *machinev1.Machine, node *v1.Node) map[string]string {
+func (r *ReconcileMachineSet) getExpectedLabels(ctx context.Context, machineSet *machinev1.MachineSet, machine *machinev1.Machine, node *v1.Node) map[string]string {
 	result := machineSet.Spec.Template.Spec.Labels
 
 	currentAnnotationValue := node.Annotations["managed.openshift.com/customlabels"]
@@ -158,7 +161,7 @@ func (r ReconcileMachineSet) getExpectedLabels(ctx context.Context, machineSet *
 	return result
 }
 
-func (r ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, m *machinev1.Machine, expectedLabels map[string]string) error {
+func (r *ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, m *machinev1.Machine, expectedLabels map[string]string) error {
 	if reflect.DeepEqual(expectedLabels, m.Spec.Labels) {
 		return nil
 	}
@@ -195,13 +198,16 @@ func (r *ReconcileMachineSet) updateLabelsInNode(ctx context.Context, node *v1.N
 	// Update Annotations and Labels when new labels are added in machine
 	newAnnotationValue := ""
 	for newKey, newVal := range expectedLabels {
-		node.Labels[newKey] = newVal
+		node.ObjectMeta.Labels[newKey] = newVal
 		if newAnnotationValue != "" {
 			newAnnotationValue += ","
 		}
 		newAnnotationValue += newKey
 	}
-	node.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
+	if node.Annotations == nil {
+		node.Annotations = map[string]string{}
+	}
+	node.ObjectMeta.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
 
 	err := r.Client.Update(ctx, node)
 	if err != nil {

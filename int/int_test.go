@@ -43,7 +43,7 @@ func setNodeLabel(machineset machinev1.MachineSet, label string, value string) {
 		node, err := m.GetNodeForMachine(i.Client, machine)
 		Expect(err).ToNot(HaveOccurred())
 		node.Labels[label] = value
-		err = i.Client.Update(context.TODO(), &node)
+		err = i.Client.Update(context.TODO(), node)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
