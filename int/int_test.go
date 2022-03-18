@@ -36,13 +36,31 @@ func setMachineSetLabel(machineset machinev1.MachineSet, label string, value str
 	Expect(err).NotTo(HaveOccurred())
 }
 
+func setNodeLabel(machineset machinev1.MachineSet, label string, value string) {
+	machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+	Expect(err).ToNot(HaveOccurred())
+	for _, machine := range machines {
+		node, err := m.GetNodeForMachine(i.Client, machine)
+		Expect(err).ToNot(HaveOccurred())
+		node.Labels[label] = value
+		err = i.Client.Update(context.TODO(), node)
+		Expect(err).NotTo(HaveOccurred())
+	}
+}
+
+func cleanupMachineSetLabels(machineset machinev1.MachineSet) {
+	machineset.Spec.Template.Spec.Labels = map[string]string{}
+	err := i.Client.Update(context.TODO(), &machineset)
+	Expect(err).NotTo(HaveOccurred())
+}
+
 func removeMachineSetLabel(machineset machinev1.MachineSet, label string) {
 	delete(machineset.Spec.Template.Spec.Labels, label)
 	err := i.Client.Update(context.TODO(), &machineset)
 	Expect(err).NotTo(HaveOccurred())
 }
 
-func waitForNodeLabel(machineset machinev1.MachineSet, label string, value string) {
+func waitForNodeLabel(machineset machinev1.MachineSet, label string, value string, nodeOnly bool) {
 	lastFailure := ""
 WAIT:
 	for t := 0 * time.Second; t < MaxWaitTime; t = t + 1*time.Second {
@@ -51,13 +69,16 @@ WAIT:
 		Expect(err).ToNot(HaveOccurred())
 		allMachinesOk := true
 		for _, machine := range machines {
-			machinelabelvalue, ok := machine.Spec.Labels[label]
-			if !ok {
-				allMachinesOk = false
-				lastFailure = "machine/" + machine.Name
-				continue WAIT
+			if !nodeOnly {
+				machinelabelvalue, ok := machine.Spec.Labels[label]
+				if !ok {
+					allMachinesOk = false
+					lastFailure = "machine/" + machine.Name
+					continue WAIT
+				}
+				Expect(machinelabelvalue).To(Equal(value))
+
 			}
-			Expect(machinelabelvalue).To(Equal(value))
 
 			node, err := m.GetNodeForMachine(i.Client, machine)
 			Expect(err).NotTo(HaveOccurred())
@@ -127,7 +148,7 @@ var _ = Describe("Integrationtests", func() {
 				TestValue = "Fake-Node-Label-Value"
 
 				//Make sure the label is not set before adding it
-				removeMachineSetLabel(workers, TestLabel)
+				cleanupMachineSetLabels(workers)
 				waitForNodeLabelAbsence(workers, TestLabel)
 
 				//refresh workers
@@ -138,7 +159,7 @@ var _ = Describe("Integrationtests", func() {
 
 			It("Is applied to the Nodes and Machines of the MachineSet", func() {
 				setMachineSetLabel(workers, TestLabel, TestValue)
-				waitForNodeLabel(workers, TestLabel, TestValue)
+				waitForNodeLabel(workers, TestLabel, TestValue, false)
 			})
 
 			AfterEach(func() {
@@ -148,10 +169,46 @@ var _ = Describe("Integrationtests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				//Clean up
-				removeMachineSetLabel(workers, TestLabel)
+				cleanupMachineSetLabels(workers)
 				waitForNodeLabelAbsence(workers, TestLabel)
 			})
 
+		})
+		Context("When overriding a label of a Node", func() {
+			BeforeEach(func() {
+				TestLabel = "Fake-Node-Label"
+				TestValue = "Fake-Node-Label-Value"
+
+				//Make sure the label is not set before adding it
+				cleanupMachineSetLabels(workers)
+				waitForNodeLabelAbsence(workers, TestLabel)
+
+				//refresh workers
+				var err error
+				workers, err = i.GetWorkerMachineSet()
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("Doesn't change", func() {
+				workers.Spec.Template.Spec.Labels = map[string]string{
+					TestLabel:                        TestValue,
+					"node-role.kubernetes.io/worker": "overruled",
+				}
+				err := i.Client.Update(context.TODO(), &workers)
+				Expect(err).NotTo(HaveOccurred())
+				waitForNodeLabel(workers, TestLabel, TestValue, false)
+				waitForNodeLabel(workers, "node-role.kubernetes.io/worker", "", true)
+			})
+			AfterEach(func() {
+				//refresh workers
+				var err error
+				workers, err = i.GetWorkerMachineSet()
+				Expect(err).NotTo(HaveOccurred())
+
+				//Clean up
+				cleanupMachineSetLabels(workers)
+				waitForNodeLabelAbsence(workers, TestLabel)
+				setNodeLabel(workers, "node-role.kubernetes.io/worker", "")
+			})
 		})
 	})
 
@@ -163,7 +220,7 @@ var _ = Describe("Integrationtests", func() {
 
 				//Add Label and wait for it to appear, so we have something to remove
 				setMachineSetLabel(workers, TestLabel, TestValue)
-				waitForNodeLabel(workers, TestLabel, TestValue)
+				waitForNodeLabel(workers, TestLabel, TestValue, false)
 
 				//refresh workers
 				var err error

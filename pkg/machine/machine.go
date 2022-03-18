@@ -82,11 +82,11 @@ func hasMatchingLabels(machineSet *machinev1.MachineSet, machine *machinev1.Mach
 }
 
 // GetNodeForMachine returns the node that is referenced in the machine resource
-func GetNodeForMachine(c client.Client, m *machinev1.Machine) (v1.Node, error) {
+func GetNodeForMachine(c client.Client, m *machinev1.Machine) (*v1.Node, error) {
 	node := &v1.Node{}
 	err := c.Get(context.TODO(), types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
 	if err != nil {
-		return v1.Node{}, err
+		return &v1.Node{}, err
 	}
-	return *node, err
+	return node, err
 }
