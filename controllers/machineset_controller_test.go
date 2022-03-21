@@ -10,6 +10,8 @@ import (
 	"github.com/golang/mock/gomock"
 
 	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
+	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type mocks struct {
@@ -29,12 +32,13 @@ var _ = Describe("MachinesetController", func() {
 	var (
 		machineSet     machinev1.MachineSet
 		machine        machinev1.Machine
+		updatedMachine machinev1.Machine
 		node           v1.Node
 		updatedNode    v1.Node
-		updatedMachine machinev1.Machine
 		mockObjects    *mocks
 		r              *ReconcileMachineSet
 		ctx            context.Context
+		localObjects   []runtime.Object
 	)
 
 	err := machinev1.AddToScheme(scheme.Scheme)
@@ -46,17 +50,32 @@ var _ = Describe("MachinesetController", func() {
 		var (
 			newLabelsInMachineSet   map[string]string
 			existingLabelsInMachine map[string]string
-			updatedLabelsInMachine  map[string]string
 		)
-
 		BeforeEach(func() {
+			localObjects = []runtime.Object{
+				&machineSet,
+				&machine,
+			}
+		})
+
+		JustBeforeEach(func() {
 			machineSet = machinev1.MachineSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test machineset",
 					Namespace: "test",
 				},
 				Spec: machinev1.MachineSetSpec{
+					Selector: metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"owner": "fake-machineset",
+						},
+					},
 					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: machinev1.ObjectMeta{
+							Labels: map[string]string{
+								"owner": "fake-machineset",
+							},
+						},
 						Spec: machinev1.MachineSpec{
 							ObjectMeta: machinev1.ObjectMeta{
 								Labels: newLabelsInMachineSet,
@@ -67,31 +86,24 @@ var _ = Describe("MachinesetController", func() {
 			}
 			machine = machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test machineset",
+					Name:      "test machine",
 					Namespace: "test",
+					Labels: map[string]string{
+						"owner": "fake-machineset",
+					},
 				},
 				Spec: machinev1.MachineSpec{
 					ObjectMeta: machinev1.ObjectMeta{
 						Labels: existingLabelsInMachine,
 					},
 				},
-			}
-			updatedMachine = machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test machineset",
-					Namespace: "test",
-				},
-				Spec: machinev1.MachineSpec{
-					ObjectMeta: machinev1.ObjectMeta{
-						Labels: updatedLabelsInMachine,
+				Status: machinev1.MachineStatus{
+					NodeRef: &corev1.ObjectReference{
+						Name: "test-node",
 					},
 				},
 			}
 
-			localObjects := []runtime.Object{
-				&machineSet,
-				&machine,
-			}
 			mockObjects = &mocks{
 				fakeKubeClient: fake.NewFakeClient(localObjects...),
 				mockCtrl:       gomock.NewController(GinkgoT()),
@@ -109,38 +121,97 @@ var _ = Describe("MachinesetController", func() {
 		})
 
 		Context("When new label is added to machineset", func() {
-			newLabelsInMachineSet = map[string]string{"foo": "bar"}
-			existingLabelsInMachine = map[string]string{}
-			updatedLabelsInMachine = map[string]string{"foo": "bar"}
+			BeforeEach(func() {
+				newLabelsInMachineSet = map[string]string{"foo": "bar"}
+				existingLabelsInMachine = map[string]string{}
+			})
 
 			It("should update labels in machine", func() {
-				err = r.updateLabelsInMachine(ctx, &machineSet, &machine)
+				err = r.updateLabelsInMachine(ctx, &machine, newLabelsInMachineSet)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(machine.Spec.Labels).To(Equal(updatedMachine.Spec.Labels))
 			})
 		})
 
 		Context("When label is deleted from machinset", func() {
-			newLabelsInMachineSet = map[string]string{}
-			existingLabelsInMachine = map[string]string{"foo": "bar"}
-			updatedLabelsInMachine = map[string]string{}
+			BeforeEach(func() {
+				newLabelsInMachineSet = map[string]string{}
+				existingLabelsInMachine = map[string]string{"foo": "bar"}
+			})
 
 			It("should delete label in machine", func() {
-				err = r.updateLabelsInMachine(ctx, &machineSet, &machine)
+				err = r.updateLabelsInMachine(ctx, &machine, newLabelsInMachineSet)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(machine.Spec.Labels).To(Equal(updatedMachine.Spec.Labels))
+				Expect(machine.Spec.Labels).To(Equal(machineSet.Spec.Template.Spec.Labels))
 			})
 		})
 
 		Context("When no new label is added to machineset", func() {
-			newLabelsInMachineSet = map[string]string{}
-			existingLabelsInMachine = map[string]string{}
-			updatedLabelsInMachine = map[string]string{}
+			BeforeEach(func() {
+				newLabelsInMachineSet = map[string]string{}
+				existingLabelsInMachine = map[string]string{}
+			})
 
 			It("should not change labels", func() {
-				err = r.updateLabelsInMachine(ctx, &machineSet, &machine)
+				err = r.updateLabelsInMachine(ctx, &machine, newLabelsInMachineSet)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(machine.Spec.Labels).To(Equal(updatedMachine.Spec.Labels))
+				Expect(machine.Spec.Labels).To(Equal(machineSet.Spec.Template.Spec.Labels))
+			})
+		})
+
+		Context("When a MachineSet would override the label of a Node", func() {
+			var (
+				existingLabelsInNode      map[string]string
+				existingAnnotationsInNode map[string]string
+			)
+			BeforeEach(func() {
+				newLabelsInMachineSet = map[string]string{"existingLabel": "newValue"}
+				existingLabelsInMachine = map[string]string{}
+				existingAnnotationsInNode = map[string]string{}
+				existingLabelsInNode = map[string]string{"existingLabel": "existingValue"}
+				node = v1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test-node",
+						Labels:      existingLabelsInNode,
+						Annotations: existingAnnotationsInNode,
+					},
+				}
+				localObjects = []runtime.Object{
+					&machine,
+					&node,
+				}
+			})
+
+			It("should not update the label", func() {
+				result, err := r.ProcessMachineSet(context.TODO(), &machineSet)
+				Expect(err).NotTo(HaveOccurred())
+				newNode, _ := m.GetNodeForMachine(mockObjects.fakeKubeClient, &machine)
+				Expect(result).To(Equal(reconcile.Result{}))
+				Expect(newNode.Labels).To(Equal(existingLabelsInNode))
+				Expect(machine.Spec.Labels).To(Equal(existingLabelsInMachine))
+			})
+
+			Context("When the operator added it previously in the node annotation", func() {
+				BeforeEach(func() {
+					existingAnnotationsInNode = map[string]string{"managed.openshift.com/customlabels": "existingLabel"}
+					node = v1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "test-node",
+							Labels:      existingLabelsInNode,
+							Annotations: existingAnnotationsInNode,
+						},
+					}
+					localObjects = []runtime.Object{
+						&machine,
+						&node,
+					}
+				})
+				It("updates the label", func() {
+					result, err := r.ProcessMachineSet(context.TODO(), &machineSet)
+					Expect(err).NotTo(HaveOccurred())
+					newNode, _ := m.GetNodeForMachine(mockObjects.fakeKubeClient, &machine)
+					Expect(result).To(Equal(reconcile.Result{}))
+					Expect(newNode.Labels).To(Equal(newLabelsInMachineSet))
+				})
 			})
 		})
 
@@ -154,6 +225,13 @@ var _ = Describe("MachinesetController", func() {
 		)
 
 		BeforeEach(func() {
+			localObjects = []runtime.Object{
+				&machineSet,
+				&machine,
+			}
+		})
+
+		JustBeforeEach(func() {
 			machineSet = machinev1.MachineSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test machineset",
@@ -186,10 +264,6 @@ var _ = Describe("MachinesetController", func() {
 				},
 			}
 
-			localObjects := []runtime.Object{
-				&machineSet,
-				&machine,
-			}
 			mockObjects = &mocks{
 				fakeKubeClient: fake.NewFakeClient(localObjects...),
 				mockCtrl:       gomock.NewController(GinkgoT()),
@@ -206,22 +280,25 @@ var _ = Describe("MachinesetController", func() {
 			mockObjects.mockCtrl.Finish()
 		})
 
-		Context("When new label is added to machineset", func() {
-			newTaintsInMachineSet = []v1.Taint{
-				v1.Taint{
-					Effect: v1.TaintEffectPreferNoSchedule,
-					Value:  "bar",
-					Key:    "foo",
-				},
-			}
-			existingTaintsInMachine = []v1.Taint{}
-			updatedTaintsInMachine = []v1.Taint{
-				v1.Taint{
-					Effect: v1.TaintEffectPreferNoSchedule,
-					Value:  "bar",
-					Key:    "foo",
-				},
-			}
+		Context("When new taint is added to machineset", func() {
+
+			BeforeEach(func() {
+				newTaintsInMachineSet = []v1.Taint{
+					v1.Taint{
+						Effect: v1.TaintEffectPreferNoSchedule,
+						Value:  "bar",
+						Key:    "foo",
+					},
+				}
+				existingTaintsInMachine = []v1.Taint{}
+				updatedTaintsInMachine = []v1.Taint{
+					v1.Taint{
+						Effect: v1.TaintEffectPreferNoSchedule,
+						Value:  "bar",
+						Key:    "foo",
+					},
+				}
+			})
 
 			It("should update taints in machine", func() {
 				err = r.updateTaintsInMachine(ctx, &machineSet, &machine)
@@ -231,29 +308,35 @@ var _ = Describe("MachinesetController", func() {
 		})
 
 		Context("When taint is deleted from machinset", func() {
-			newTaintsInMachineSet = []v1.Taint{}
-			existingTaintsInMachine = []v1.Taint{
-				v1.Taint{
-					Effect: v1.TaintEffectPreferNoSchedule,
-					Value:  "bar",
-					Key:    "foo",
-				}}
-			updatedTaintsInMachine = []v1.Taint{}
+
+			BeforeEach(func() {
+				newTaintsInMachineSet = []v1.Taint{}
+				existingTaintsInMachine = []v1.Taint{
+					v1.Taint{
+						Effect: v1.TaintEffectPreferNoSchedule,
+						Value:  "bar",
+						Key:    "foo",
+					}}
+				updatedTaintsInMachine = []v1.Taint{}
+			})
 
 			It("should delete taint in machine", func() {
-				err = r.updateLabelsInMachine(ctx, &machineSet, &machine)
+				err = r.updateTaintsInMachine(ctx, &machineSet, &machine)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(machine.Spec.Taints).To(Equal(updatedMachine.Spec.Taints))
 			})
 		})
 
 		Context("When no new taint is added to machineset", func() {
-			newTaintsInMachineSet = []v1.Taint{}
-			existingTaintsInMachine = []v1.Taint{}
-			updatedTaintsInMachine = []v1.Taint{}
+
+			BeforeEach(func() {
+				newTaintsInMachineSet = []v1.Taint{}
+				existingTaintsInMachine = []v1.Taint{}
+				updatedTaintsInMachine = []v1.Taint{}
+			})
 
 			It("should not change taints", func() {
-				err = r.updateLabelsInMachine(ctx, &machineSet, &machine)
+				err = r.updateTaintsInMachine(ctx, &machineSet, &machine)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(machine.Spec.Taints).To(Equal(updatedMachine.Spec.Taints))
 			})
@@ -263,12 +346,13 @@ var _ = Describe("MachinesetController", func() {
 
 	Describe("Updating labels in node", func() {
 		var (
-			newLabelsInMachine   map[string]string
-			existingLabelsInNode map[string]string
-			updatedLabelsInNode  map[string]string
+			newLabelsInMachine        map[string]string
+			existingLabelsInNode      map[string]string
+			existingAnnotationsInNode map[string]string
+			node                      v1.Node
 		)
 
-		BeforeEach(func() {
+		JustBeforeEach(func() {
 			machine = machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test machine",
@@ -283,18 +367,8 @@ var _ = Describe("MachinesetController", func() {
 			node = v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "test-node",
-					Namespace:   "test",
 					Labels:      existingLabelsInNode,
-					Annotations: existingLabelsInNode,
-				},
-			}
-
-			updatedNode = v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test-node",
-					Namespace:   "test",
-					Labels:      updatedLabelsInNode,
-					Annotations: updatedLabelsInNode,
+					Annotations: existingAnnotationsInNode,
 				},
 			}
 
@@ -319,38 +393,42 @@ var _ = Describe("MachinesetController", func() {
 		})
 
 		Context("When new label is added to machine", func() {
-			newLabelsInMachine = map[string]string{"foo": "bar"}
-			existingLabelsInNode = map[string]string{}
-			updatedLabelsInNode = map[string]string{"foo": "bar"}
+			BeforeEach(func() {
+				newLabelsInMachine = map[string]string{"foo": "bar"}
+				existingLabelsInNode = map[string]string{}
+			})
 
 			It("should update labels in node", func() {
-				err = r.updateLabelsInNode(ctx, &machine)
+				err = r.updateLabelsInNode(ctx, &node, newLabelsInMachine)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(machine.Spec.Labels).To(Equal(updatedNode.Labels))
+				Expect(machine.Spec.Labels).To(Equal(node.Labels))
 			})
 		})
 
 		Context("When label is deleted from machine", func() {
-			newLabelsInMachine = map[string]string{}
-			existingLabelsInNode = map[string]string{"foo": "bar"}
-			updatedLabelsInNode = map[string]string{}
+			BeforeEach(func() {
+				newLabelsInMachine = map[string]string{}
+				existingLabelsInNode = map[string]string{"foo": "bar"}
+				existingAnnotationsInNode = map[string]string{"managed.openshift.com/customlabels": "foo"}
+			})
 
 			It("should update labels in node", func() {
-				err = r.updateLabelsInNode(ctx, &machine)
+				err = r.updateLabelsInNode(ctx, &node, newLabelsInMachine)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(machine.Spec.Labels).To(Equal(updatedNode.Labels))
+				Expect(machine.Spec.Labels).To(Equal(node.Labels))
 			})
 		})
 
 		Context("When no new label is added to machine", func() {
-			newLabelsInMachine = map[string]string{}
-			existingLabelsInNode = map[string]string{}
-			updatedLabelsInNode = map[string]string{}
+			BeforeEach(func() {
+				newLabelsInMachine = map[string]string{}
+				existingLabelsInNode = map[string]string{}
+			})
 
 			It("should not change labels in node", func() {
-				err = r.updateLabelsInNode(ctx, &machine)
+				err = r.updateLabelsInNode(ctx, &node, newLabelsInMachine)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(machine.Spec.Labels).To(Equal(updatedNode.Labels))
+				Expect(machine.Spec.Labels).To(Equal(node.Labels))
 			})
 		})
 
@@ -364,6 +442,12 @@ var _ = Describe("MachinesetController", func() {
 		)
 
 		BeforeEach(func() {
+			localObjects = []runtime.Object{
+				&machine,
+				&node,
+			}
+		})
+		JustBeforeEach(func() {
 			machine = machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test machine",
@@ -393,10 +477,6 @@ var _ = Describe("MachinesetController", func() {
 				},
 			}
 
-			localObjects := []runtime.Object{
-				&machine,
-				&node,
-			}
 			mockObjects = &mocks{
 				fakeKubeClient: fake.NewFakeClient(localObjects...),
 				mockCtrl:       gomock.NewController(GinkgoT()),
@@ -414,53 +494,63 @@ var _ = Describe("MachinesetController", func() {
 		})
 
 		Context("When new taint is added to machine", func() {
-			newTaintsInMachine = []v1.Taint{
-				v1.Taint{
-					Effect: v1.TaintEffectPreferNoSchedule,
-					Value:  "bar",
-					Key:    "foo",
-				},
-			}
-			existingTaintsInNode = []v1.Taint{}
-			updatedTaintsInNode = []v1.Taint{
-				v1.Taint{
-					Effect: v1.TaintEffectPreferNoSchedule,
-					Value:  "bar",
-					Key:    "foo",
-				},
-			}
+
+			BeforeEach(func() {
+				newTaintsInMachine = []v1.Taint{
+					v1.Taint{
+						Effect: v1.TaintEffectPreferNoSchedule,
+						Value:  "bar",
+						Key:    "foo",
+					},
+				}
+				existingTaintsInNode = []v1.Taint{}
+				updatedTaintsInNode = []v1.Taint{
+					v1.Taint{
+						Effect: v1.TaintEffectPreferNoSchedule,
+						Value:  "bar",
+						Key:    "foo",
+					},
+				}
+			})
 
 			It("should update taints in node", func() {
-				err = r.updateTaintsInNode(ctx, &machine)
+				err = r.updateTaintsInNode(ctx, &machine, &node)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
 			})
 		})
 
 		Context("When taint is deleted from machinset", func() {
-			newTaintsInMachine = []v1.Taint{}
-			existingTaintsInNode = []v1.Taint{
-				v1.Taint{
-					Effect: v1.TaintEffectPreferNoSchedule,
-					Value:  "bar",
-					Key:    "foo",
-				}}
-			updatedTaintsInNode = []v1.Taint{}
+
+			BeforeEach(func() {
+				newTaintsInMachine = []v1.Taint{}
+				existingTaintsInNode = []v1.Taint{
+					v1.Taint{
+						Effect: v1.TaintEffectPreferNoSchedule,
+						Value:  "bar",
+						Key:    "foo",
+					}}
+				updatedTaintsInNode = []v1.Taint{}
+			})
 
 			It("should delete taint in node", func() {
-				err = r.updateTaintsInNode(ctx, &machine)
+				err = r.updateTaintsInNode(ctx, &machine, &node)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
 			})
 		})
 
 		Context("When no new taint is added to machine", func() {
-			newTaintsInMachine = []v1.Taint{}
-			existingTaintsInNode = []v1.Taint{}
-			updatedTaintsInNode = []v1.Taint{}
+
+			BeforeEach(func() {
+				newTaintsInMachine = []v1.Taint{}
+				existingTaintsInNode = []v1.Taint{}
+				updatedTaintsInNode = []v1.Taint{}
+
+			})
 
 			It("should not change taints", func() {
-				err = r.updateTaintsInNode(ctx, &machine)
+				err = r.updateTaintsInNode(ctx, &machine, &node)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
 			})
