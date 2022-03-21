@@ -128,8 +128,18 @@ func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet 
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+		// Update taints in machine
+		err = r.updateTaintsInMachine(ctx, machineSet, machine)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		//Update labels in node
 		err = r.updateLabelsInNode(ctx, node, expectedLabels)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		// Update taints in node
+		err = r.updateTaintsInNode(ctx, machine, node)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -169,6 +179,20 @@ func (r *ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, m *mach
 	err := r.Client.Update(ctx, m)
 	if err != nil {
 		klog.Errorf("failed to update label in %s", m.Name)
+		return err
+	}
+	return nil
+}
+
+func (r ReconcileMachineSet) updateTaintsInMachine(ctx context.Context, machineSet *machinev1.MachineSet, m *machinev1.Machine) error {
+	// Compare labels of machineset vs machine and update them if they're not the same
+	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Taints, m.Spec.Taints) {
+		m.Spec.Taints = machineSet.Spec.Template.Spec.Taints
+	}
+
+	err := r.Client.Update(ctx, m)
+	if err != nil {
+		klog.Errorf("failed to update taint in %s", m.Name)
 		return err
 	}
 	return nil
@@ -215,5 +239,20 @@ func (r *ReconcileMachineSet) updateLabelsInNode(ctx context.Context, node *v1.N
 		return err
 	}
 
+	return nil
+}
+
+func (r ReconcileMachineSet) updateTaintsInNode(ctx context.Context, machine *machinev1.Machine, node *v1.Node) error {
+
+	// Compare labels of machineset vs machine and update them if they're not the same
+	if !reflect.DeepEqual(machine.Spec.Taints, node.Spec.Taints) {
+		node.Spec.Taints = machine.Spec.Taints
+	}
+
+	err := r.Client.Update(ctx, node)
+	if err != nil {
+		klog.Errorf("failed to update taint in %s", node.Name)
+		return err
+	}
 	return nil
 }
