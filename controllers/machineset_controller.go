@@ -23,6 +23,7 @@ import (
 
 	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
 	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
+	"github.com/openshift/managed-node-metadata-operator/pkg/metrics"
 	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -126,21 +127,41 @@ func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet 
 		// Update labels in machine
 		err = r.updateLabelsInMachine(ctx, machine, expectedLabels)
 		if err != nil {
+			metrics.RegisterFailedLabelUpdate(&metrics.MnmoLabels{
+				Name:      machine.Name,
+				Namespace: machine.Namespace,
+				Reason:    "Machine label update failed",
+			})
 			return reconcile.Result{}, err
 		}
 		// Update taints in machine
 		err = r.updateTaintsInMachine(ctx, machineSet, machine)
 		if err != nil {
+			metrics.RegisterFailedTaintUpdate(&metrics.MnmoLabels{
+				Name:      machine.Name,
+				Namespace: machine.Namespace,
+				Reason:    "Machine taint update failed",
+			})
 			return reconcile.Result{}, err
 		}
 		//Update labels in node
 		err = r.updateLabelsInNode(ctx, node, expectedLabels)
 		if err != nil {
+			metrics.RegisterFailedLabelUpdate(&metrics.MnmoLabels{
+				Name:      node.Name,
+				Namespace: node.Namespace,
+				Reason:    "Node label update failed",
+			})
 			return reconcile.Result{}, err
 		}
 		// Update taints in node
 		err = r.updateTaintsInNode(ctx, machine, node)
 		if err != nil {
+			metrics.RegisterFailedTaintUpdate(&metrics.MnmoLabels{
+				Name:      node.Name,
+				Namespace: node.Namespace,
+				Reason:    "Node taint update failed",
+			})
 			return reconcile.Result{}, err
 		}
 	}
