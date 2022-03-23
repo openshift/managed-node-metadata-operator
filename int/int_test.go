@@ -61,24 +61,6 @@ func setNodeLabel(machineset machinev1.MachineSet, label string, value string) {
 	}
 }
 
-func setNodeTaint(machineset machinev1.MachineSet, key string, value string) {
-	machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
-	Expect(err).ToNot(HaveOccurred())
-	for _, machine := range machines {
-		node, err := m.GetNodeForMachine(i.Client, machine)
-		Expect(err).ToNot(HaveOccurred())
-		node.Spec.Taints = []v1.Taint{
-			v1.Taint{
-				Effect: v1.TaintEffectPreferNoSchedule,
-				Value:  value,
-				Key:    key,
-			},
-		}
-		err = i.Client.Update(context.TODO(), node)
-		Expect(err).NotTo(HaveOccurred())
-	}
-}
-
 func cleanupMachineSetLabels(machineset machinev1.MachineSet) {
 	machineset.Spec.Template.Spec.Labels = map[string]string{}
 	err := i.Client.Update(context.TODO(), &machineset)
@@ -163,7 +145,7 @@ WAIT:
 		for _, machine := range machines {
 			if !nodeOnly {
 				machineTaintKeyExist := false
-				for _, taint := range machineset.Spec.Template.Spec.Taints {
+				for _, taint := range machine.Spec.Taints {
 					if taint.Key == key {
 						machineTaintKeyExist = true
 						Expect(taint.Value).To(Equal(value))
@@ -241,7 +223,7 @@ WAIT:
 		Expect(err).ToNot(HaveOccurred())
 		allMachinesOk := true
 		for _, machine := range machines {
-			for _, taint := range machineset.Spec.Template.Spec.Taints {
+			for _, taint := range machine.Spec.Taints {
 				if taint.Key == key {
 					allMachinesOk = false
 					lastFailure = "machine/" + machine.Name
@@ -392,7 +374,6 @@ var _ = Describe("Integrationtests", func() {
 
 			It("Is applied to the Nodes and Machines of the MachineSet", func() {
 				setMachineSetTaint(workers, TestTaint, TestValueTaint)
-				setNodeTaint(workers, TestTaint, TestValueTaint)
 				waitForNodeTaint(workers, TestTaint, TestValueTaint, false)
 			})
 
