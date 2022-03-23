@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 
 	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
 	. "github.com/openshift/managed-node-metadata-operator/int"
@@ -36,6 +37,18 @@ func setMachineSetLabel(machineset machinev1.MachineSet, label string, value str
 	Expect(err).NotTo(HaveOccurred())
 }
 
+func setMachineSetTaint(machineset machinev1.MachineSet, key string, value string) {
+	machineset.Spec.Template.Spec.Taints = []v1.Taint{
+		v1.Taint{
+			Effect: v1.TaintEffectPreferNoSchedule,
+			Value:  value,
+			Key:    key,
+		},
+	}
+	err := i.Client.Update(context.TODO(), &machineset)
+	Expect(err).NotTo(HaveOccurred())
+}
+
 func setNodeLabel(machineset machinev1.MachineSet, label string, value string) {
 	machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 	Expect(err).ToNot(HaveOccurred())
@@ -54,8 +67,32 @@ func cleanupMachineSetLabels(machineset machinev1.MachineSet) {
 	Expect(err).NotTo(HaveOccurred())
 }
 
+func cleanupMachineSetTaint(machineset machinev1.MachineSet) {
+	machineset.Spec.Template.Spec.Taints = []v1.Taint{}
+	err := i.Client.Update(context.TODO(), &machineset)
+	Expect(err).NotTo(HaveOccurred())
+}
+
 func removeMachineSetLabel(machineset machinev1.MachineSet, label string) {
 	delete(machineset.Spec.Template.Spec.Labels, label)
+	err := i.Client.Update(context.TODO(), &machineset)
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func removeMachineSetTaint(machineset machinev1.MachineSet, key string) {
+
+	shouldDelete := false
+	for i, taint := range machineset.Spec.Template.Spec.Taints {
+
+		if taint.Key == key {
+			shouldDelete = true
+			break
+		}
+
+		if shouldDelete == false {
+			machineset.Spec.Template.Spec.Taints = append(machineset.Spec.Template.Spec.Taints, machineset.Spec.Template.Spec.Taints[i])
+		}
+	}
 	err := i.Client.Update(context.TODO(), &machineset)
 	Expect(err).NotTo(HaveOccurred())
 }
@@ -97,6 +134,54 @@ WAIT:
 	Fail("Label '" + label + "' did not get the expected value '" + value + "' after " + MaxWaitTime.String() + " on " + lastFailure)
 }
 
+func waitForNodeTaint(machineset machinev1.MachineSet, key string, value string, nodeOnly bool) {
+	lastFailure := ""
+WAIT:
+	for t := 0 * time.Second; t < MaxWaitTime; t = t + 1*time.Second {
+		time.Sleep(1 * time.Second)
+		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+		Expect(err).ToNot(HaveOccurred())
+		allMachinesOk := true
+		for _, machine := range machines {
+			if !nodeOnly {
+				machineTaintKeyExist := false
+				for _, taint := range machine.Spec.Taints {
+					if taint.Key == key {
+						machineTaintKeyExist = true
+						Expect(taint.Value).To(Equal(value))
+						break
+					}
+				}
+				if machineTaintKeyExist == false {
+					allMachinesOk = false
+					lastFailure = "machine/" + machine.Name
+					continue WAIT
+				}
+			}
+
+			node, err := m.GetNodeForMachine(i.Client, machine)
+			Expect(err).NotTo(HaveOccurred())
+			nodeTaintKeyExist := false
+			for _, taint := range node.Spec.Taints {
+				if taint.Key == key {
+					nodeTaintKeyExist = true
+					Expect(taint.Value).To(Equal(value))
+					break
+				}
+			}
+			if nodeTaintKeyExist == false {
+				allMachinesOk = false
+				lastFailure = "node/" + node.Name
+				continue WAIT
+			}
+		}
+		if allMachinesOk {
+			return
+		}
+	}
+	Fail("Taint '" + key + "' did not get the expected value '" + value + "' after " + MaxWaitTime.String() + " on " + lastFailure)
+}
+
 func waitForNodeLabelAbsence(machineset machinev1.MachineSet, label string) {
 	lastFailure := ""
 WAIT:
@@ -129,11 +214,47 @@ WAIT:
 	Fail("Label '" + label + "' did not get removed as expected after " + MaxWaitTime.String() + " on " + lastFailure)
 }
 
+func waitForNodeTaintAbsence(machineset machinev1.MachineSet, key string) {
+	lastFailure := ""
+WAIT:
+	for t := 0 * time.Second; t < MaxWaitTime; t = t + 1*time.Second {
+		time.Sleep(1 * time.Second)
+		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+		Expect(err).ToNot(HaveOccurred())
+		allMachinesOk := true
+		for _, machine := range machines {
+			for _, taint := range machine.Spec.Taints {
+				if taint.Key == key {
+					allMachinesOk = false
+					lastFailure = "machine/" + machine.Name
+					continue WAIT
+				}
+			}
+
+			node, err := m.GetNodeForMachine(i.Client, machine)
+			Expect(err).NotTo(HaveOccurred())
+			for _, taint := range node.Spec.Taints {
+				if taint.Key == key {
+					allMachinesOk = false
+					lastFailure = "node/" + node.Name
+					continue WAIT
+				}
+			}
+		}
+		if allMachinesOk {
+			return
+		}
+	}
+	Fail("Taint '" + key + "' did not get removed as expected after " + MaxWaitTime.String() + " on " + lastFailure)
+}
+
 var _ = Describe("Integrationtests", func() {
 	var (
-		TestLabel string
-		TestValue string
-		workers   machinev1.MachineSet
+		TestLabel      string
+		TestTaint      string
+		TestValue      string
+		TestValueTaint string
+		workers        machinev1.MachineSet
 	)
 	BeforeEach(func() {
 		var err error
@@ -231,6 +352,63 @@ var _ = Describe("Integrationtests", func() {
 			It("Is removed from Nodes and Machines of the MachineSet", func() {
 				removeMachineSetLabel(workers, TestLabel)
 				waitForNodeLabelAbsence(workers, TestLabel)
+			})
+		})
+	})
+
+	Context("When adding a taint to a MachineSet", func() {
+		Context("When the taint doesn't exist on the Node", func() {
+			BeforeEach(func() {
+				TestTaint = "Fake-Node-Taint"
+				TestValueTaint = "Fake-Node-Taint-Value"
+
+				//Make sure the taint is not set before adding it
+				cleanupMachineSetTaint(workers)
+				waitForNodeTaintAbsence(workers, TestTaint)
+
+				//refresh workers
+				var err error
+				workers, err = i.GetWorkerMachineSet()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("Is applied to the Nodes and Machines of the MachineSet", func() {
+				setMachineSetTaint(workers, TestTaint, TestValueTaint)
+				waitForNodeTaint(workers, TestTaint, TestValueTaint, false)
+			})
+
+			AfterEach(func() {
+				//refresh workers
+				var err error
+				workers, err = i.GetWorkerMachineSet()
+				Expect(err).NotTo(HaveOccurred())
+
+				//Clean up
+				cleanupMachineSetTaint(workers)
+				waitForNodeTaintAbsence(workers, TestTaint)
+			})
+		})
+	})
+
+	Context("When removing a taint from a MachineSet", func() {
+		Context("When the taint exists on the Node", func() {
+			BeforeEach(func() {
+				TestTaint = "Fake-Node-Taint"
+				TestValueTaint = "Fake-Node-Taint-Value"
+
+				//Add Taint and wait for it to appear, so we have something to remove
+				setMachineSetTaint(workers, TestTaint, TestValueTaint)
+				waitForNodeTaint(workers, TestTaint, TestValueTaint, false)
+
+				//refresh workers
+				var err error
+				workers, err = i.GetWorkerMachineSet()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("Is removed from Nodes and Machines of the MachineSet", func() {
+				removeMachineSetTaint(workers, TestTaint)
+				waitForNodeTaintAbsence(workers, TestTaint)
 			})
 		})
 	})
