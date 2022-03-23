@@ -52,6 +52,7 @@ func setMachineSetTaint(machineset machinev1.MachineSet, key string, value strin
 func setNodeLabel(machineset machinev1.MachineSet, label string, value string) {
 	machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 	Expect(err).ToNot(HaveOccurred())
+	Expect(len(machines)).To(BeNumerically(">", 0))
 	for _, machine := range machines {
 		node, err := m.GetNodeForMachine(i.Client, machine)
 		Expect(err).ToNot(HaveOccurred())
@@ -104,6 +105,7 @@ WAIT:
 		time.Sleep(1 * time.Second)
 		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(len(machines)).To(BeNumerically(">", 0))
 		allMachinesOk := true
 		for _, machine := range machines {
 			if !nodeOnly {
@@ -189,6 +191,7 @@ WAIT:
 		time.Sleep(1 * time.Second)
 		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(len(machines)).To(BeNumerically(">", 0))
 		allMachinesOk := true
 		for _, machine := range machines {
 			_, ok := machine.Spec.Labels[label]

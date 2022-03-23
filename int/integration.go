@@ -63,6 +63,11 @@ func (i *Integration) GetWorkerMachineSet() (machinev1.MachineSet, error) {
 		if ok && role == "worker" {
 			return ms, nil
 		}
+		role, ok = ms.Labels["machine.openshift.io/cluster-api-machine-role"]
+		if ok && role == "worker" {
+			return ms, nil
+		}
+
 	}
 	return machinev1.MachineSet{}, fmt.Errorf("no worker MachineSet found")
 }
