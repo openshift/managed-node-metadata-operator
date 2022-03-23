@@ -32,7 +32,7 @@ flowchart TD
 ```
 
 ## Development and Testing
-Please refer to the [development and testing guide](docs/development-and-testing.md).
+Refer to the [development and testing guide](docs/development-and-testing.md) to understand how to run and test the operator.
 
 ## Boilerplate
 This repository subscribes to the [openshift/golang-osd-operator](https://github.com/openshift/boilerplate/tree/master/boilerplate/openshift/golang-osd-operator) convention of [boilerplate](https://github.com/openshift/boilerplate/).
