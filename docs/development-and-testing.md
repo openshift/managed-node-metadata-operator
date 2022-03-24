@@ -1,4 +1,5 @@
 # Development and Testing
+
 ## Running pipeline scripts locally
 
 The script that's run in the pipeline is located [here](../hack/app_sre_build_deploy.sh), this script is used to build and deploy the operator image to the app-sre repository. We'll also detail how to build and push an image to your own quay repository.
