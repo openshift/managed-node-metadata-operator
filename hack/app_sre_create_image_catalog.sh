@@ -131,9 +131,11 @@ fi
 
 # push image
 skopeo copy --dest-creds "${QUAY_USER}:${QUAY_TOKEN}" \
+    --src-cert-dir=$DOCKER_CERT_PATH --src-daemon-host=$DOCKER_HOST \
     "docker-daemon:${REGISTRY_IMAGE}:${BRANCH_CHANNEL}-latest" \
     "docker://${REGISTRY_IMAGE}:${BRANCH_CHANNEL}-latest"
 
 skopeo copy --dest-creds "${QUAY_USER}:${QUAY_TOKEN}" \
+    --src-cert-dir=$DOCKER_CERT_PATH --src-daemon-host=$DOCKER_HOST \
     "docker-daemon:${REGISTRY_IMAGE}:${BRANCH_CHANNEL}-latest" \
     "docker://${REGISTRY_IMAGE}:${BRANCH_CHANNEL}-${GIT_HASH}"

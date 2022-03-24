@@ -26,9 +26,10 @@ if image_exists_in_repo "${OPERATOR_IMAGE_URI}"; then
     echo "Skipping operator image build/push"
 else
     # build and push the operator image
-    BUILD_CMD="docker build" IMG="$OPERATOR_IMAGE_URI" make docker-build
+    #BUILD_CMD="docker build" IMG="$OPERATOR_IMAGE_URI" make docker-build
     if [[ ${DRY_RUN} != 'y' ]] ; then
       skopeo copy --dest-creds "${QUAY_USER}:${QUAY_TOKEN}" \
+        --src-cert-dir=$DOCKER_CERT_PATH --src-daemon-host=$DOCKER_HOST \
         "docker-daemon:${OPERATOR_IMAGE_URI}" \
         "docker://${OPERATOR_IMAGE_URI}"
     fi
