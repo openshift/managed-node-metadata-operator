@@ -108,6 +108,7 @@ func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet 
 	// Get machines for machineset
 	machines, err := m.GetMachinesForMachineSet(r, machineSet)
 	if err != nil {
+		metrics.RegisterFailedReconcile()
 		return reconcile.Result{}, err
 	}
 
@@ -118,53 +119,41 @@ func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet 
 		node, err := m.GetNodeForMachine(r, machine)
 		if err != nil {
 			klog.Errorf("failed to fetch node for machine %s", machine.Name)
+			metrics.RegisterFailedReconcile()
 			return reconcile.Result{}, err
 		}
 		expectedLabels := r.getExpectedLabels(ctx, machineSet, machine, node)
 		if err != nil {
+			metrics.RegisterFailedReconcile()
 			return reconcile.Result{}, err
 		}
 		// Update labels in machine
 		err = r.updateLabelsInMachine(ctx, machine, expectedLabels)
 		if err != nil {
-			metrics.RegisterFailedLabelUpdate(&metrics.MnmoLabels{
-				Name:      machine.Name,
-				Namespace: machine.Namespace,
-				Reason:    "Machine label update failed",
-			})
+			metrics.RegisterFailedReconcile()
 			return reconcile.Result{}, err
 		}
 		// Update taints in machine
 		err = r.updateTaintsInMachine(ctx, machineSet, machine)
 		if err != nil {
-			metrics.RegisterFailedTaintUpdate(&metrics.MnmoLabels{
-				Name:      machine.Name,
-				Namespace: machine.Namespace,
-				Reason:    "Machine taint update failed",
-			})
+			metrics.RegisterFailedReconcile()
 			return reconcile.Result{}, err
 		}
 		//Update labels in node
 		err = r.updateLabelsInNode(ctx, node, expectedLabels)
 		if err != nil {
-			metrics.RegisterFailedLabelUpdate(&metrics.MnmoLabels{
-				Name:      node.Name,
-				Namespace: node.Namespace,
-				Reason:    "Node label update failed",
-			})
+			metrics.RegisterFailedReconcile()
 			return reconcile.Result{}, err
 		}
 		// Update taints in node
 		err = r.updateTaintsInNode(ctx, machine, node)
 		if err != nil {
-			metrics.RegisterFailedTaintUpdate(&metrics.MnmoLabels{
-				Name:      node.Name,
-				Namespace: node.Namespace,
-				Reason:    "Node taint update failed",
-			})
+			metrics.RegisterFailedReconcile()
 			return reconcile.Result{}, err
 		}
 	}
+
+	metrics.RegisterSuccessReconcile()
 	return reconcile.Result{}, nil
 }
 

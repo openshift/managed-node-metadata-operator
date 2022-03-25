@@ -5,12 +5,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-const (
-	DefaultMachineSetMetricsAddress = ":8082"
-	DefaultMachineMetricsAddress    = ":8081"
-	DefaultNodeMetricsAddress       = ":8083"
-)
-
 var (
 	// MnmoCollectorUp is a Prometheus metric, which reports reflects successful collection and reporting of all the metrics
 	MnmoCollectorUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -18,48 +12,37 @@ var (
 		Help: "Managed node metadata Operator metrics are being collected and reported successfully",
 	}, []string{"kind"})
 
-	failedLabelUpdateCount = prometheus.NewCounterVec(
+	failedReconcileCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mnmo_label_update_failed",
-			Help: "Number of times label update has failed.",
-		}, []string{"name", "namespace", "reason"},
+			Name: "mnmo_reconcile_failed",
+			Help: "Number of times reconcile has failed.",
+		}, []string{"name", "namespace"},
 	)
 
-	failedTaintUpdateCount = prometheus.NewCounterVec(
+	successReconcileCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "mnmo_taint_update_failed",
-			Help: "Number of times taint update has failed.",
-		}, []string{"name", "namespace", "reason"},
+			Name: "mnmo_reconcile_success",
+			Help: "Number of times reconcile succeeded.",
+		}, []string{"name", "namespace"},
 	)
 )
 
 func init() {
 	prometheus.MustRegister(MnmoCollectorUp)
 	metrics.Registry.MustRegister(
-		failedLabelUpdateCount,
-		failedTaintUpdateCount,
+		failedReconcileCount,
+		successReconcileCount,
 	)
 }
 
-// MnmoLabels is the group of labels that are applied to the mnmo metrics
-type MnmoLabels struct {
-	Name      string
-	Namespace string
-	Reason    string
-}
-
-func RegisterFailedLabelUpdate(labels *MnmoLabels) {
-	failedLabelUpdateCount.With(prometheus.Labels{
-		"name":      labels.Name,
-		"namespace": labels.Namespace,
-		"reason":    labels.Reason,
+func RegisterFailedReconcile() {
+	failedReconcileCount.With(prometheus.Labels{
+		"success": "false",
 	}).Inc()
 }
 
-func RegisterFailedTaintUpdate(labels *MnmoLabels) {
-	failedTaintUpdateCount.With(prometheus.Labels{
-		"name":      labels.Name,
-		"namespace": labels.Namespace,
-		"reason":    labels.Reason,
+func RegisterSuccessReconcile() {
+	successReconcileCount.With(prometheus.Labels{
+		"success": "true",
 	}).Inc()
 }
