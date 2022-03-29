@@ -30,7 +30,7 @@ if [[ "$BRANCH_CHANNEL" == "production" ]]; then
     SAAS_FILE_EXISTS=$(curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" -o saasfile.yaml ; echo $?)
 
     if [[ "$SAAS_FILE_EXISTS" != "0" ]]; then
-        echo "Not deployed to production yet, exiting"
+        echo "Can't get SAAS file, assuming the operator is not deployed yet, exiting"
         exit 0
     fi
     DEPLOYED_HASH=$(docker run --rm -i quay.io/app-sre/yq:3.4.1 yq r - "resourceTemplates[*].targets(namespace.\$ref==/services/osd-operators/namespaces/hivep01ue1/cluster-scope.yml).ref" < saasfile.yaml)
@@ -42,27 +42,26 @@ if [[ "$BRANCH_CHANNEL" == "production" ]]; then
     echo "Current deployed production HASH: $DEPLOYED_HASH"
 
     if [[ ! "${DEPLOYED_HASH}" =~ [0-9a-f]{40} ]]; then
-        echo "Error discovering current production deployed HASH"
-        exit 1
-    fi
+        echo "Can't discover current production deployed HASH, assuming the operator was not yet promoted to production."
+    else
+        delete=false
+        # Sort based on commit number
+        for version in $(ls $BUNDLE_DIR | sort -t . -k 3 -g); do
+            # skip if not directory
+            [ -d "$BUNDLE_DIR/$version" ] || continue
 
-    delete=false
-    # Sort based on commit number
-    for version in $(ls $BUNDLE_DIR | sort -t . -k 3 -g); do
-        # skip if not directory
-        [ -d "$BUNDLE_DIR/$version" ] || continue
+            if [[ "$delete" == false ]]; then
+                short_hash=$(echo "$version" | cut -d- -f2)
 
-        if [[ "$delete" == false ]]; then
-            short_hash=$(echo "$version" | cut -d- -f2)
-
-            if [[ "$DEPLOYED_HASH" == "${short_hash}"* ]]; then
-                delete=true
+                if [[ "$DEPLOYED_HASH" == "${short_hash}"* ]]; then
+                    delete=true
+                fi
+            else
+                rm -rf "${BUNDLE_DIR:?BUNDLE_DIR var not set}/$version"
+                REMOVED_VERSIONS="$version $REMOVED_VERSIONS"
             fi
-        else
-            rm -rf "${BUNDLE_DIR:?BUNDLE_DIR var not set}/$version"
-            REMOVED_VERSIONS="$version $REMOVED_VERSIONS"
-        fi
-    done
+        done
+    fi
 fi
 
 # generate bundle
