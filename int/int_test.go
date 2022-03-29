@@ -81,19 +81,15 @@ func removeMachineSetLabel(machineset machinev1.MachineSet, label string) {
 }
 
 func removeMachineSetTaint(machineset machinev1.MachineSet, key string) {
+	newTaints := []v1.Taint{}
 
-	shouldDelete := false
 	for i, taint := range machineset.Spec.Template.Spec.Taints {
-
 		if taint.Key == key {
-			shouldDelete = true
-			break
+			continue
 		}
-
-		if shouldDelete == false {
-			machineset.Spec.Template.Spec.Taints = append(machineset.Spec.Template.Spec.Taints, machineset.Spec.Template.Spec.Taints[i])
-		}
+		newTaints = append(newTaints, machineset.Spec.Template.Spec.Taints[i])
 	}
+	machineset.Spec.Template.Spec.Taints = newTaints
 	err := i.Client.Update(context.TODO(), &machineset)
 	Expect(err).NotTo(HaveOccurred())
 }
