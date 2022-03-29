@@ -41,27 +41,27 @@ if [[ "$BRANCH_CHANNEL" == "production" ]]; then
     # an error and allowing the script to continue
     echo "Current deployed production HASH: $DEPLOYED_HASH"
 
+    delete=false
     if [[ ! "${DEPLOYED_HASH}" =~ [0-9a-f]{40} ]]; then
         echo "Can't discover current production deployed HASH, assuming the operator was not yet promoted to production."
-    else
-        delete=false
-        # Sort based on commit number
-        for version in $(ls $BUNDLE_DIR | sort -t . -k 3 -g); do
-            # skip if not directory
-            [ -d "$BUNDLE_DIR/$version" ] || continue
-
-            if [[ "$delete" == false ]]; then
-                short_hash=$(echo "$version" | cut -d- -f2)
-
-                if [[ "$DEPLOYED_HASH" == "${short_hash}"* ]]; then
-                    delete=true
-                fi
-            else
-                rm -rf "${BUNDLE_DIR:?BUNDLE_DIR var not set}/$version"
-                REMOVED_VERSIONS="$version $REMOVED_VERSIONS"
-            fi
-        done
+        delete=true
     fi
+    # Sort based on commit number
+    for version in $(ls $BUNDLE_DIR | sort -t . -k 3 -g); do
+        # skip if not directory
+        [ -d "$BUNDLE_DIR/$version" ] || continue
+
+        if [[ "$delete" == false ]]; then
+            short_hash=$(echo "$version" | cut -d- -f2)
+
+            if [[ "$DEPLOYED_HASH" == "${short_hash}"* ]]; then
+                delete=true
+            fi
+        else
+            rm -rf "${BUNDLE_DIR:?BUNDLE_DIR var not set}/$version"
+            REMOVED_VERSIONS="$version $REMOVED_VERSIONS"
+        fi
+    done
 fi
 
 # generate bundle
@@ -96,7 +96,15 @@ docker rm managed-node-metadata-operator-pipeline
 rsync -a packagemanifests/* $BUNDLE_DIR/
 rm -rf packagemanifests
 
+NEW_VERSION=$(ls "$BUNDLE_DIR" | sort -t . -k 3 -g | tail -n 1)
+
+# If only a single version exists, make sure there is no "replaces" property
+if [[ $(ls -l $BUNDLE_DIR | wc -l) -le 3 ]]; then
+    sed -i '/replaces:/d' $BUNDLE_DIR/$NEW_VERSION/$_OPERATOR_NAME.clusterserviceversion.yaml
+fi
+
 BUNDLE_DIR=$BUNDLE_DIR BUNDLE_IMG="${REGISTRY_IMAGE}:${BRANCH_CHANNEL}-latest" PREV_VERSION="$PREV_VERSION" make packagemanifests-build
+
 
 pushd $SAAS_OPERATOR_DIR
 
@@ -110,7 +118,6 @@ removed versions: $REMOVED_VERSIONS"
 git commit -m "$MESSAGE"
 popd
 
-NEW_VERSION=$(ls "$BUNDLE_DIR" | sort -t . -k 3 -g | tail -n 1)
 
 if [ "$NEW_VERSION" == "$PREV_VERSION" ]; then
     # stopping script as that version was already built, so no need to rebuild it
