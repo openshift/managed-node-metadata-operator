@@ -27,7 +27,7 @@ git clone \
 # remove any versions more recent than deployed hash
 REMOVED_VERSIONS=""
 if [[ "$BRANCH_CHANNEL" == "production" ]]; then
-    SAAS_FILE_EXISTS=$(curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" -o saasfile.yaml || echo $?)
+    SAAS_FILE_EXISTS=$(curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" -o saasfile.yaml ; echo $?)
 
     if [[ "$SAAS_FILE_EXISTS" != "0" ]]; then
         echo "Not deployed to production yet, exiting"
