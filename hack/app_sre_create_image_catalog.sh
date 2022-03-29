@@ -27,10 +27,10 @@ git clone \
 # remove any versions more recent than deployed hash
 REMOVED_VERSIONS=""
 if [[ "$BRANCH_CHANNEL" == "production" ]]; then
-    SAAS_FILE_EXISTS=$(curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" -o saasfile.yaml || echo $?)
+    SAAS_FILE_EXISTS=$(curl -s "https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${_OPERATOR_NAME}.yaml" -o saasfile.yaml ; echo $?)
 
     if [[ "$SAAS_FILE_EXISTS" != "0" ]]; then
-        echo "Not deployed to production yet, exiting"
+        echo "Can't get SAAS file, assuming the operator is not deployed yet, exiting"
         exit 0
     fi
     DEPLOYED_HASH=$(docker run --rm -i quay.io/app-sre/yq:3.4.1 yq r - "resourceTemplates[*].targets(namespace.\$ref==/services/osd-operators/namespaces/hivep01ue1/cluster-scope.yml).ref" < saasfile.yaml)
@@ -41,12 +41,11 @@ if [[ "$BRANCH_CHANNEL" == "production" ]]; then
     # an error and allowing the script to continue
     echo "Current deployed production HASH: $DEPLOYED_HASH"
 
-    if [[ ! "${DEPLOYED_HASH}" =~ [0-9a-f]{40} ]]; then
-        echo "Error discovering current production deployed HASH"
-        exit 1
-    fi
-
     delete=false
+    if [[ ! "${DEPLOYED_HASH}" =~ [0-9a-f]{40} ]]; then
+        echo "Can't discover current production deployed HASH, assuming the operator was not yet promoted to production."
+        delete=true
+    fi
     # Sort based on commit number
     for version in $(ls $BUNDLE_DIR | sort -t . -k 3 -g); do
         # skip if not directory
@@ -97,7 +96,15 @@ docker rm managed-node-metadata-operator-pipeline
 rsync -a packagemanifests/* $BUNDLE_DIR/
 rm -rf packagemanifests
 
+NEW_VERSION=$(ls "$BUNDLE_DIR" | sort -t . -k 3 -g | tail -n 1)
+
+# If only a single version exists, make sure there is no "replaces" property
+if [[ $(ls -l $BUNDLE_DIR | wc -l) -le 3 ]]; then
+    sed -i '/replaces:/d' $BUNDLE_DIR/$NEW_VERSION/$_OPERATOR_NAME.clusterserviceversion.yaml
+fi
+
 BUNDLE_DIR=$BUNDLE_DIR BUNDLE_IMG="${REGISTRY_IMAGE}:${BRANCH_CHANNEL}-latest" PREV_VERSION="$PREV_VERSION" make packagemanifests-build
+
 
 pushd $SAAS_OPERATOR_DIR
 
@@ -111,7 +118,6 @@ removed versions: $REMOVED_VERSIONS"
 git commit -m "$MESSAGE"
 popd
 
-NEW_VERSION=$(ls "$BUNDLE_DIR" | sort -t . -k 3 -g | tail -n 1)
 
 if [ "$NEW_VERSION" == "$PREV_VERSION" ]; then
     # stopping script as that version was already built, so no need to rebuild it
