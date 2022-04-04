@@ -2,4 +2,4 @@ resources:
 - ../default
 #- ../samples
 #- ../scorecard
-- ../prometheus
+#- ../prometheus
