@@ -47,7 +47,8 @@ if [[ "$BRANCH_CHANNEL" == "production" ]]; then
         delete=true
     fi
     # Sort based on commit number
-    for version in $(ls -d $BUNDLE_DIR*/ | sort -t . -k 3 -g); do
+    pushd $BUNDLE_DIR
+    for version in $(ls | sort -t . -k 3 -g); do
         # skip if not directory
         [ -d "$version" ] || continue
 
@@ -58,14 +59,15 @@ if [[ "$BRANCH_CHANNEL" == "production" ]]; then
                 delete=true
             fi
         else
-            rm -rf "$version"
-            REMOVED_VERSIONS="$(basename $version) $REMOVED_VERSIONS"
+            git rm -rf $version
+            REMOVED_VERSIONS="$version $REMOVED_VERSIONS"
         fi
     done
+    popd
 fi
 
 # generate bundle
-PREV_VERSION=$(basename "$(ls -d $BUNDLE_DIR*/ | sort -t . -k 3 -g | tail -n 1)")
+PREV_VERSION=$(ls $BUNDLE_DIR | grep -E "^[0-9]+\."| sort -t . -k 3 -g | tail -n 1)
 
 # build the registry image
 IMAGE_DIGEST=$(skopeo inspect docker://$QUAY_IMAGE:$GIT_HASH | jq -r .Digest)
