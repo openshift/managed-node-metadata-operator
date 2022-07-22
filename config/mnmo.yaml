@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Pod
-metadata:
-  name: mnmo
-spec:
-  containers:
-  - name: mnmo
-    image: quay.io/katherinelc321/klin:latest
-  serviceAccountName: mnmo-operator
