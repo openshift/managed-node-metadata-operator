@@ -30,6 +30,7 @@ func NewIntegration() (*Integration, error) {
 
 	utilruntime.Must(machinev1.AddToScheme(scheme))
 	utilruntime.Must(admissionregistration.AddToScheme(scheme))
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: ":9999",
@@ -37,8 +38,7 @@ func NewIntegration() (*Integration, error) {
 	if err != nil {
 		return &Integration{}, err
 	}
-	client := mgr.GetClient()
-	i := Integration{client, mgr}
+	i := Integration{mgr.GetClient(), mgr}
 	go func() {
 		err := mgr.GetCache().Start(context.TODO())
 		if err != nil {

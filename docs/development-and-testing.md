@@ -21,7 +21,7 @@ Remember to undo these steps to get your cluster back to normal.
 To run the operator on your local machine and operate on resources on the cluster you're currently logged in, run the following command:
 
 ```
-make run
+go run .
 ```
 
 This allows to iterate quickly during development, without building and deploying.
@@ -88,7 +88,7 @@ Before running the script, ensure the repositories are created on quay.io
 To build and push your image for app-sre, use [./hack/app_sre_build_deploy.sh].
 ## Running integration tests
 
-Integration tests use the same client library as the operator itself. Before running the integration tests, ensure you have set your environment variables and have the operator image available in your personal quay repository, as described in the previous sections.
+Integration tests use the same client library as the operator itself. Before running the integration tests, ensure you have set your environment variables.  If you are running against a non-local cluster, ensure you have the operator image available in your personal quay repository, as described in the previous sections.
 
 You can follow the operator logs with the following command:
 ```bash
@@ -99,7 +99,7 @@ oc logs -f -n openshift-managed-node-metadata-operator $(oc get pods -n openshif
 
 You can run them against an OpenShift cluster by running the go tests in the `int` folder:
 ```
-go test -count=1 ./int/...
+go test -count=1 ./int/
 ```
 Make sure to exclude them when running unit tests.
 They are excluded when running `make test` by default.

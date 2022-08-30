@@ -18,7 +18,7 @@ var (
 )
 
 const (
-	MaxWaitTime time.Duration = 30 * time.Second
+	MaxWaitTime = 30 * time.Second
 )
 
 var _ = BeforeSuite(func() {
@@ -39,7 +39,7 @@ func setMachineSetLabel(machineset machinev1.MachineSet, label string, value str
 
 func setMachineSetTaint(machineset machinev1.MachineSet, key string, value string) {
 	machineset.Spec.Template.Spec.Taints = []v1.Taint{
-		v1.Taint{
+		{
 			Effect: v1.TaintEffectPreferNoSchedule,
 			Value:  value,
 			Key:    key,
@@ -81,7 +81,7 @@ func removeMachineSetLabel(machineset machinev1.MachineSet, label string) {
 }
 
 func removeMachineSetTaint(machineset machinev1.MachineSet, key string) {
-	newTaints := []v1.Taint{}
+	var newTaints []v1.Taint
 
 	for i, taint := range machineset.Spec.Template.Spec.Taints {
 		if taint.Key == key {
