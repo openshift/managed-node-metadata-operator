@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/golang/mock/gomock"
 
 	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
 	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
@@ -28,7 +27,6 @@ type mocks struct {
 }
 
 var _ = Describe("MachinesetController", func() {
-
 	var (
 		machineSet     machinev1.MachineSet
 		machine        machinev1.Machine
@@ -36,13 +34,17 @@ var _ = Describe("MachinesetController", func() {
 		node           v1.Node
 		updatedNode    v1.Node
 		mockObjects    *mocks
+		err            error
 		r              *ReconcileMachineSet
 		ctx            context.Context
-		localObjects   []runtime.Object
+		localObjects   []client.Object
 	)
 
-	err := machinev1.AddToScheme(scheme.Scheme)
-	if err != nil {
+	s := runtime.NewScheme()
+	if err := corev1.AddToScheme(s); err != nil {
+		fmt.Printf("failed adding apis to scheme in machineset controller tests")
+	}
+	if err := machinev1.AddToScheme(s); err != nil {
 		fmt.Printf("failed adding apis to scheme in machineset controller tests")
 	}
 
@@ -52,7 +54,7 @@ var _ = Describe("MachinesetController", func() {
 			existingLabelsInMachine map[string]string
 		)
 		BeforeEach(func() {
-			localObjects = []runtime.Object{
+			localObjects = []client.Object{
 				&machineSet,
 				&machine,
 			}
@@ -105,7 +107,7 @@ var _ = Describe("MachinesetController", func() {
 			}
 
 			mockObjects = &mocks{
-				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				fakeKubeClient: fake.NewClientBuilder().WithScheme(s).WithObjects(localObjects...).Build(),
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
@@ -175,7 +177,7 @@ var _ = Describe("MachinesetController", func() {
 						Annotations: existingAnnotationsInNode,
 					},
 				}
-				localObjects = []runtime.Object{
+				localObjects = []client.Object{
 					&machine,
 					&node,
 				}
@@ -200,7 +202,7 @@ var _ = Describe("MachinesetController", func() {
 							Annotations: existingAnnotationsInNode,
 						},
 					}
-					localObjects = []runtime.Object{
+					localObjects = []client.Object{
 						&machine,
 						&node,
 					}
@@ -225,7 +227,7 @@ var _ = Describe("MachinesetController", func() {
 		)
 
 		BeforeEach(func() {
-			localObjects = []runtime.Object{
+			localObjects = []client.Object{
 				&machineSet,
 				&machine,
 			}
@@ -265,7 +267,7 @@ var _ = Describe("MachinesetController", func() {
 			}
 
 			mockObjects = &mocks{
-				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				fakeKubeClient: fake.NewClientBuilder().WithScheme(s).WithObjects(localObjects...).Build(),
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
@@ -284,7 +286,7 @@ var _ = Describe("MachinesetController", func() {
 
 			BeforeEach(func() {
 				newTaintsInMachineSet = []v1.Taint{
-					v1.Taint{
+					{
 						Effect: v1.TaintEffectPreferNoSchedule,
 						Value:  "bar",
 						Key:    "foo",
@@ -292,7 +294,7 @@ var _ = Describe("MachinesetController", func() {
 				}
 				existingTaintsInMachine = []v1.Taint{}
 				updatedTaintsInMachine = []v1.Taint{
-					v1.Taint{
+					{
 						Effect: v1.TaintEffectPreferNoSchedule,
 						Value:  "bar",
 						Key:    "foo",
@@ -312,7 +314,7 @@ var _ = Describe("MachinesetController", func() {
 			BeforeEach(func() {
 				newTaintsInMachineSet = []v1.Taint{}
 				existingTaintsInMachine = []v1.Taint{
-					v1.Taint{
+					{
 						Effect: v1.TaintEffectPreferNoSchedule,
 						Value:  "bar",
 						Key:    "foo",
@@ -372,12 +374,12 @@ var _ = Describe("MachinesetController", func() {
 				},
 			}
 
-			localObjects := []runtime.Object{
+			localObjects := []client.Object{
 				&machine,
 				&node,
 			}
 			mockObjects = &mocks{
-				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				fakeKubeClient: fake.NewClientBuilder().WithScheme(s).WithObjects(localObjects...).Build(),
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
@@ -442,7 +444,7 @@ var _ = Describe("MachinesetController", func() {
 		)
 
 		BeforeEach(func() {
-			localObjects = []runtime.Object{
+			localObjects = []client.Object{
 				&machine,
 				&node,
 			}
@@ -478,7 +480,7 @@ var _ = Describe("MachinesetController", func() {
 			}
 
 			mockObjects = &mocks{
-				fakeKubeClient: fake.NewFakeClient(localObjects...),
+				fakeKubeClient: fake.NewClientBuilder().WithScheme(s).WithObjects(localObjects...).Build(),
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
@@ -497,7 +499,7 @@ var _ = Describe("MachinesetController", func() {
 
 			BeforeEach(func() {
 				newTaintsInMachine = []v1.Taint{
-					v1.Taint{
+					{
 						Effect: v1.TaintEffectPreferNoSchedule,
 						Value:  "bar",
 						Key:    "foo",
@@ -505,7 +507,7 @@ var _ = Describe("MachinesetController", func() {
 				}
 				existingTaintsInNode = []v1.Taint{}
 				updatedTaintsInNode = []v1.Taint{
-					v1.Taint{
+					{
 						Effect: v1.TaintEffectPreferNoSchedule,
 						Value:  "bar",
 						Key:    "foo",
@@ -525,7 +527,7 @@ var _ = Describe("MachinesetController", func() {
 			BeforeEach(func() {
 				newTaintsInMachine = []v1.Taint{}
 				existingTaintsInNode = []v1.Taint{
-					v1.Taint{
+					{
 						Effect: v1.TaintEffectPreferNoSchedule,
 						Value:  "bar",
 						Key:    "foo",

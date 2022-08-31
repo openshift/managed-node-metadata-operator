@@ -96,8 +96,15 @@ func removeMachineSetTaint(machineset machinev1.MachineSet, key string) {
 
 func waitForNodeLabel(machineset machinev1.MachineSet, label string, value string, nodeOnly bool) {
 	lastFailure := ""
-WAIT:
-	for t := 0 * time.Second; t < MaxWaitTime; t = t + 1*time.Second {
+
+	// Wait for a maximum of MaxWaitTime, if the timer goes off, mark the test as failed
+	timer := time.NewTimer(MaxWaitTime)
+	go func() {
+		<-timer.C
+		Fail("Label '" + label + "' did not get the expected value '" + value + "' after " + MaxWaitTime.String() + " on " + lastFailure)
+	}()
+
+	for {
 		time.Sleep(1 * time.Second)
 		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
@@ -105,37 +112,43 @@ WAIT:
 		allMachinesOk := true
 		for _, machine := range machines {
 			if !nodeOnly {
-				machinelabelvalue, ok := machine.Spec.Labels[label]
+				machineLabelValue, ok := machine.Spec.Labels[label]
 				if !ok {
 					allMachinesOk = false
 					lastFailure = "machine/" + machine.Name
-					continue WAIT
+					continue
 				}
-				Expect(machinelabelvalue).To(Equal(value))
+				Expect(machineLabelValue).To(Equal(value))
 
 			}
 
 			node, err := m.GetNodeForMachine(i.Client, machine)
 			Expect(err).NotTo(HaveOccurred())
-			nodelabelvalue, ok := node.Labels[label]
+			nodeLabelValue, ok := node.Labels[label]
 			if !ok {
 				allMachinesOk = false
 				lastFailure = "node/" + node.Name
-				continue WAIT
+				continue
 			}
-			Expect(nodelabelvalue).To(Equal(value))
+			Expect(nodeLabelValue).To(Equal(value))
 		}
 		if allMachinesOk {
 			return
 		}
 	}
-	Fail("Label '" + label + "' did not get the expected value '" + value + "' after " + MaxWaitTime.String() + " on " + lastFailure)
 }
 
 func waitForNodeTaint(machineset machinev1.MachineSet, key string, value string, nodeOnly bool) {
 	lastFailure := ""
-WAIT:
-	for t := 0 * time.Second; t < MaxWaitTime; t = t + 1*time.Second {
+
+	// Wait for a maximum of MaxWaitTime, if the timer goes off, mark the test as failed
+	timer := time.NewTimer(MaxWaitTime)
+	go func() {
+		<-timer.C
+		Fail("Taint '" + key + "' did not get the expected value '" + value + "' after " + MaxWaitTime.String() + " on " + lastFailure)
+	}()
+
+	for {
 		time.Sleep(1 * time.Second)
 		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
@@ -153,7 +166,7 @@ WAIT:
 				if machineTaintKeyExist == false {
 					allMachinesOk = false
 					lastFailure = "machine/" + machine.Name
-					continue WAIT
+					continue
 				}
 			}
 
@@ -170,20 +183,26 @@ WAIT:
 			if nodeTaintKeyExist == false {
 				allMachinesOk = false
 				lastFailure = "node/" + node.Name
-				continue WAIT
+				continue
 			}
 		}
 		if allMachinesOk {
 			return
 		}
 	}
-	Fail("Taint '" + key + "' did not get the expected value '" + value + "' after " + MaxWaitTime.String() + " on " + lastFailure)
 }
 
 func waitForNodeLabelAbsence(machineset machinev1.MachineSet, label string) {
 	lastFailure := ""
-WAIT:
-	for t := 0 * time.Second; t < MaxWaitTime; t = t + 1*time.Second {
+
+	// Wait for a maximum of MaxWaitTime, if the timer goes off, mark the test as failed
+	timer := time.NewTimer(MaxWaitTime)
+	go func() {
+		<-timer.C
+		Fail("Label '" + label + "' did not get removed as expected after " + MaxWaitTime.String() + " on " + lastFailure)
+	}()
+
+	for {
 		time.Sleep(1 * time.Second)
 		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
@@ -194,7 +213,7 @@ WAIT:
 			if ok {
 				allMachinesOk = false
 				lastFailure = "machine/" + machine.Name
-				continue WAIT
+				continue
 			}
 
 			node, err := m.GetNodeForMachine(i.Client, machine)
@@ -203,20 +222,26 @@ WAIT:
 			if ok {
 				allMachinesOk = false
 				lastFailure = "node/" + node.Name
-				continue WAIT
+				continue
 			}
 		}
 		if allMachinesOk {
 			return
 		}
 	}
-	Fail("Label '" + label + "' did not get removed as expected after " + MaxWaitTime.String() + " on " + lastFailure)
 }
 
 func waitForNodeTaintAbsence(machineset machinev1.MachineSet, key string) {
 	lastFailure := ""
-WAIT:
-	for t := 0 * time.Second; t < MaxWaitTime; t = t + 1*time.Second {
+
+	// Wait for a maximum of MaxWaitTime, if the timer goes off, mark the test as failed
+	timer := time.NewTimer(MaxWaitTime)
+	go func() {
+		<-timer.C
+		Fail("Taint '" + key + "' did not get removed as expected after " + MaxWaitTime.String() + " on " + lastFailure)
+	}()
+
+	for {
 		time.Sleep(1 * time.Second)
 		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
@@ -226,7 +251,7 @@ WAIT:
 				if taint.Key == key {
 					allMachinesOk = false
 					lastFailure = "machine/" + machine.Name
-					continue WAIT
+					continue
 				}
 			}
 
@@ -236,7 +261,7 @@ WAIT:
 				if taint.Key == key {
 					allMachinesOk = false
 					lastFailure = "node/" + node.Name
-					continue WAIT
+					continue
 				}
 			}
 		}
@@ -244,7 +269,6 @@ WAIT:
 			return
 		}
 	}
-	Fail("Taint '" + key + "' did not get removed as expected after " + MaxWaitTime.String() + " on " + lastFailure)
 }
 
 var _ = Describe("Integrationtests", func() {
