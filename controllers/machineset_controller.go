@@ -152,7 +152,7 @@ func (r *ReconcileMachineSet) getExpectedLabels(ctx context.Context, machineSet 
 
 	currentAnnotationValue := node.Annotations["managed.openshift.com/customlabels"]
 	// Labels that are already set at the Node, but weren't set by the machine resource are ignored to avoid overwriting them
-	for label, _ := range machineSet.Spec.Template.Spec.Labels {
+	for label := range machineSet.Spec.Template.Spec.Labels {
 		_, nodeHasLabel := node.Labels[label]
 		_, machineHasLabel := machine.Spec.Labels[label]
 
