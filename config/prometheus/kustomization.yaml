@@ -1,5 +1,0 @@
-resources:
-- monitor.yaml
-- service.yaml
-- role.yaml
-- rolebinding.yaml

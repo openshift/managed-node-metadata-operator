@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: managed-node-metadata-operator
+  name: managed-node-metadata-operator-metrics-service
+  namespace: openshift-managed-node-metadata-operator
+spec:
+  selector:
+    name: managed-node-metadata-operator
+  ports:
+    - name: metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8080

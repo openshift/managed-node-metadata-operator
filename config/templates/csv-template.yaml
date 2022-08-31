@@ -1,0 +1,48 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: managed-node-metadata-operator-0.0.1
+  namespace: placeholder
+  annotations:
+    categories: A list of comma separated categories that your operator falls under.
+    certified: "false"
+    description: Operator to manage VPC Endpoints for OpenShift Dedicated Clusters.
+    containerImage: quay.io/app-sre/managed-node-metadata-operator:latest
+    createdAt: "2020-11-03T10:41:36Z"
+    support: Red Hat SRE
+spec:
+  displayName: managed-node-metadata-operator
+  description: Automatically synchronizes metadata from MachineSets to Nodes
+  keywords:
+    - operator-sdk
+    - golang
+    - sre
+    - node
+    - openshift-dedicated
+    - openshift
+    - redhat
+  version: 0.0.1
+  provider:
+    name: Red Hat, Inc
+  maturity: alpha
+  installModes:
+    - type: OwnNamespace
+      supported: true
+    - type: SingleNamespace
+      supported: true
+    - type: MultiNamespace
+      supported: false
+    - type: AllNamespaces
+      supported: false
+  install:
+    strategy: deployment
+    spec:
+      clusterPermissions:
+        - serviceAccountName: managed-node-metadata-operator
+          # Rules will be added here by boilerplate/openshift/golang-osd-operator/csv-generate
+      deployments:
+        - name: managed-node-metadata-operator
+          # Deployment spec will be added here by boilerplate/openshift/golang-osd-operator/csv-generate
+  customresourcedefinitions:
+    owned:
+    # CRD's will be added here by boilerplate/openshift/golang-osd-operator/csv-generate
