@@ -35,6 +35,9 @@ spec:
             - --enable-leader-election
           command:
             - /manager
+          env:
+            - name: OPERATOR_NAME
+              value: "managed-node-metadata-operator"
           imagePullPolicy: Always
           resources:
             limits:
