@@ -11,7 +11,7 @@ oc scale deployment -n openshift-operator-lifecycle-manager catalog-operator --r
 oc scale deployment -n openshift-operator-lifecycle-manager olm-operator --replicas=0
 
 # Stop existing operator. This deployment will be reused by `make deploy` (see Deploy to cluster)
-oc scale deployment -n openshift-managed-node-metadata-operator openshift-managed-node-metadata-operator-controller-manager --replicas=0
+oc scale deployment -n openshift-managed-node-metadata-operator managed-node-metadata-operator --replicas=0
 ```
 
 Remember to undo these steps to get your cluster back to normal.
