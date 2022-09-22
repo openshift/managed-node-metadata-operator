@@ -32,7 +32,7 @@ spec:
         - name: managed-node-metadata-operator
           image: # TODO: Fill me out
           args:
-            - --enable-leader-election
+            - --leader-elect
           command:
             - /manager
           imagePullPolicy: Always

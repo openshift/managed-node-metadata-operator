@@ -8,9 +8,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
+	machinev1 "github.com/openshift/api/machine/v1beta1"
 	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,13 +34,13 @@ var _ = Describe("MachinesetController", func() {
 		updatedNode    v1.Node
 		mockObjects    *mocks
 		err            error
-		r              *ReconcileMachineSet
+		r              *MachinesetReconciler
 		ctx            context.Context
 		localObjects   []client.Object
 	)
 
 	s := runtime.NewScheme()
-	if err := corev1.AddToScheme(s); err != nil {
+	if err := v1.AddToScheme(s); err != nil {
 		fmt.Printf("failed adding apis to scheme in machineset controller tests")
 	}
 	if err := machinev1.AddToScheme(s); err != nil {
@@ -100,7 +99,7 @@ var _ = Describe("MachinesetController", func() {
 					},
 				},
 				Status: machinev1.MachineStatus{
-					NodeRef: &corev1.ObjectReference{
+					NodeRef: &v1.ObjectReference{
 						Name: "test-node",
 					},
 				},
@@ -111,7 +110,7 @@ var _ = Describe("MachinesetController", func() {
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
-			r = &ReconcileMachineSet{
+			r = &MachinesetReconciler{
 				mockObjects.fakeKubeClient,
 				scheme.Scheme,
 				record.NewFakeRecorder(32),
@@ -271,7 +270,7 @@ var _ = Describe("MachinesetController", func() {
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
-			r = &ReconcileMachineSet{
+			r = &MachinesetReconciler{
 				mockObjects.fakeKubeClient,
 				scheme.Scheme,
 				record.NewFakeRecorder(32),
@@ -383,7 +382,7 @@ var _ = Describe("MachinesetController", func() {
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
-			r = &ReconcileMachineSet{
+			r = &MachinesetReconciler{
 				mockObjects.fakeKubeClient,
 				scheme.Scheme,
 				record.NewFakeRecorder(32),
@@ -484,7 +483,7 @@ var _ = Describe("MachinesetController", func() {
 				mockCtrl:       gomock.NewController(GinkgoT()),
 			}
 
-			r = &ReconcileMachineSet{
+			r = &MachinesetReconciler{
 				mockObjects.fakeKubeClient,
 				scheme.Scheme,
 				record.NewFakeRecorder(32),

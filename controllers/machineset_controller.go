@@ -1,5 +1,5 @@
 /*
-
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,75 +21,46 @@ import (
 	"reflect"
 	"strings"
 
-	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
+	machinev1 "github.com/openshift/api/machine/v1beta1"
 	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
 	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var (
-	controllerName = "machineset_controller"
-)
-
-// Add creates a new MachineSet Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
-func Add(mgr manager.Manager, opts manager.Options) error {
-	r := newReconciler(mgr)
-	return add(mgr, r)
-}
-
-// newReconciler returns a new reconcile.Reconciler.
-func newReconciler(mgr manager.Manager) *ReconcileMachineSet {
-	return &ReconcileMachineSet{Client: mgr.GetClient(), scheme: mgr.GetScheme(), recorder: mgr.GetEventRecorderFor(controllerName)}
-}
-
-// add adds a new Controller to mgr with r as the reconcile.Reconciler.
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller.
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to MachineSet.
-	err = c.Watch(
-		&source.Kind{Type: &machinev1.MachineSet{}},
-		&handler.EnqueueRequestForObject{},
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
-}
-
-// ReconcileMachineSet reconciles a MachineSet object
-type ReconcileMachineSet struct {
+// MachinesetReconciler reconciles a Machineset object
+type MachinesetReconciler struct {
 	client.Client
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;update;patch
 
-func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+// TODO(user): Modify the Reconcile function to compare the state specified by
+// the Machineset object against the actual cluster state, and then
+// perform operations to make the cluster state reflect the state specified by
+// the user.
+//
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
+func (r *MachinesetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	_ = log.FromContext(ctx)
 
 	// Fetch the MachineSet instance
 	machineSet := &machinev1.MachineSet{}
-	err := r.Client.Get(ctx, request.NamespacedName, machineSet)
+	err := r.Client.Get(ctx, req.NamespacedName, machineSet)
 	if err != nil {
 		if k8serr.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -103,9 +74,9 @@ func (r *ReconcileMachineSet) Reconcile(ctx context.Context, request reconcile.R
 	return r.ProcessMachineSet(ctx, machineSet)
 }
 
-func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet *machinev1.MachineSet) (reconcile.Result, error) {
+func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet *machinev1.MachineSet) (reconcile.Result, error) {
 	// Get machines for machineset
-	machines, err := m.GetMachinesForMachineSet(r, machineSet)
+	machines, err := m.GetMachinesForMachineSet(r.Client, machineSet)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -114,7 +85,7 @@ func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet 
 		if machine.Status.NodeRef == nil || machine.Status.NodeRef.Name == "" {
 			continue
 		}
-		node, err := m.GetNodeForMachine(r, machine)
+		node, err := m.GetNodeForMachine(r.Client, machine)
 		if err != nil {
 			klog.Errorf("failed to fetch node for machine %s", machine.Name)
 			return reconcile.Result{}, err
@@ -147,7 +118,7 @@ func (r *ReconcileMachineSet) ProcessMachineSet(ctx context.Context, machineSet 
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileMachineSet) getExpectedLabels(ctx context.Context, machineSet *machinev1.MachineSet, machine *machinev1.Machine, node *v1.Node) map[string]string {
+func (r *MachinesetReconciler) getExpectedLabels(ctx context.Context, machineSet *machinev1.MachineSet, machine *machinev1.Machine, node *v1.Node) map[string]string {
 	result := machineSet.Spec.Template.Spec.Labels
 
 	currentAnnotationValue := node.Annotations["managed.openshift.com/customlabels"]
@@ -171,7 +142,7 @@ func (r *ReconcileMachineSet) getExpectedLabels(ctx context.Context, machineSet 
 	return result
 }
 
-func (r *ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, m *machinev1.Machine, expectedLabels map[string]string) error {
+func (r *MachinesetReconciler) updateLabelsInMachine(ctx context.Context, m *machinev1.Machine, expectedLabels map[string]string) error {
 	if reflect.DeepEqual(expectedLabels, m.Spec.Labels) {
 		return nil
 	}
@@ -184,7 +155,7 @@ func (r *ReconcileMachineSet) updateLabelsInMachine(ctx context.Context, m *mach
 	return nil
 }
 
-func (r ReconcileMachineSet) updateTaintsInMachine(ctx context.Context, machineSet *machinev1.MachineSet, m *machinev1.Machine) error {
+func (r MachinesetReconciler) updateTaintsInMachine(ctx context.Context, machineSet *machinev1.MachineSet, m *machinev1.Machine) error {
 	// Compare labels of machineset vs machine and update them if they're not the same
 	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Taints, m.Spec.Taints) {
 		m.Spec.Taints = machineSet.Spec.Template.Spec.Taints
@@ -198,7 +169,7 @@ func (r ReconcileMachineSet) updateTaintsInMachine(ctx context.Context, machineS
 	return nil
 }
 
-func (r *ReconcileMachineSet) updateLabelsInNode(ctx context.Context, node *v1.Node, expectedLabels map[string]string) error {
+func (r *MachinesetReconciler) updateLabelsInNode(ctx context.Context, node *v1.Node, expectedLabels map[string]string) error {
 	// Build temp map to store current custom labels in node
 	currentNodeLabels := map[string]string{}
 	// Check node Annotations and compare with Labels to get custom labels
@@ -242,7 +213,7 @@ func (r *ReconcileMachineSet) updateLabelsInNode(ctx context.Context, node *v1.N
 	return nil
 }
 
-func (r ReconcileMachineSet) updateTaintsInNode(ctx context.Context, machine *machinev1.Machine, node *v1.Node) error {
+func (r MachinesetReconciler) updateTaintsInNode(ctx context.Context, machine *machinev1.Machine, node *v1.Node) error {
 
 	// Compare labels of machineset vs machine and update them if they're not the same
 	if !reflect.DeepEqual(machine.Spec.Taints, node.Spec.Taints) {
@@ -255,4 +226,11 @@ func (r ReconcileMachineSet) updateTaintsInNode(ctx context.Context, machine *ma
 		return err
 	}
 	return nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *MachinesetReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&machinev1.MachineSet{}).
+		Complete(r)
 }
