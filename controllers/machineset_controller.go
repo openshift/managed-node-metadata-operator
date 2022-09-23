@@ -23,6 +23,7 @@ import (
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
 	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
+	"github.com/openshift/managed-node-metadata-operator/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -88,6 +89,7 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 		node, err := m.GetNodeForMachine(r.Client, machine)
 		if err != nil {
 			klog.Errorf("failed to fetch node for machine %s", machine.Name)
+			metrics.NodeReconciliationFailure.WithLabelValues(machine.Name).Add(1.0)
 			return reconcile.Result{}, err
 		}
 		expectedLabels := r.getExpectedLabels(ctx, machineSet, machine, node)
@@ -97,21 +99,25 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 		// Update labels in machine
 		err = r.updateLabelsInMachine(ctx, machine, expectedLabels)
 		if err != nil {
+			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
 			return reconcile.Result{}, err
 		}
 		// Update taints in machine
 		err = r.updateTaintsInMachine(ctx, machineSet, machine)
 		if err != nil {
+			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
 			return reconcile.Result{}, err
 		}
 		//Update labels in node
 		err = r.updateLabelsInNode(ctx, node, expectedLabels)
 		if err != nil {
+			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
 			return reconcile.Result{}, err
 		}
 		// Update taints in node
 		err = r.updateTaintsInNode(ctx, machine, node)
 		if err != nil {
+			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
 			return reconcile.Result{}, err
 		}
 	}
