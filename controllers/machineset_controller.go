@@ -23,7 +23,7 @@ import (
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
 	m "github.com/openshift/managed-node-metadata-operator/pkg/machine"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -118,7 +118,7 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 	return reconcile.Result{}, nil
 }
 
-func (r *MachinesetReconciler) getExpectedLabels(ctx context.Context, machineSet *machinev1.MachineSet, machine *machinev1.Machine, node *v1.Node) map[string]string {
+func (r *MachinesetReconciler) getExpectedLabels(ctx context.Context, machineSet *machinev1.MachineSet, machine *machinev1.Machine, node *corev1.Node) map[string]string {
 	result := machineSet.Spec.Template.Spec.Labels
 
 	currentAnnotationValue := node.Annotations["managed.openshift.com/customlabels"]
@@ -169,7 +169,7 @@ func (r MachinesetReconciler) updateTaintsInMachine(ctx context.Context, machine
 	return nil
 }
 
-func (r *MachinesetReconciler) updateLabelsInNode(ctx context.Context, node *v1.Node, expectedLabels map[string]string) error {
+func (r *MachinesetReconciler) updateLabelsInNode(ctx context.Context, node *corev1.Node, expectedLabels map[string]string) error {
 	// Build temp map to store current custom labels in node
 	currentNodeLabels := map[string]string{}
 	// Check node Annotations and compare with Labels to get custom labels
@@ -213,7 +213,7 @@ func (r *MachinesetReconciler) updateLabelsInNode(ctx context.Context, node *v1.
 	return nil
 }
 
-func (r MachinesetReconciler) updateTaintsInNode(ctx context.Context, machine *machinev1.Machine, node *v1.Node) error {
+func (r MachinesetReconciler) updateTaintsInNode(ctx context.Context, machine *machinev1.Machine, node *corev1.Node) error {
 
 	// Compare labels of machineset vs machine and update them if they're not the same
 	if !reflect.DeepEqual(machine.Spec.Taints, node.Spec.Taints) {

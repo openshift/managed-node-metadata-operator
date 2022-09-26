@@ -6,7 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
 	. "github.com/openshift/managed-node-metadata-operator/int"
@@ -38,9 +38,9 @@ func setMachineSetLabel(machineset machinev1.MachineSet, label string, value str
 }
 
 func setMachineSetTaint(machineset machinev1.MachineSet, key string, value string) {
-	machineset.Spec.Template.Spec.Taints = []v1.Taint{
+	machineset.Spec.Template.Spec.Taints = []corev1.Taint{
 		{
-			Effect: v1.TaintEffectPreferNoSchedule,
+			Effect: corev1.TaintEffectPreferNoSchedule,
 			Value:  value,
 			Key:    key,
 		},
@@ -69,7 +69,7 @@ func cleanupMachineSetLabels(machineset machinev1.MachineSet) {
 }
 
 func cleanupMachineSetTaint(machineset machinev1.MachineSet) {
-	machineset.Spec.Template.Spec.Taints = []v1.Taint{}
+	machineset.Spec.Template.Spec.Taints = []corev1.Taint{}
 	err := i.Client.Update(context.TODO(), &machineset)
 	Expect(err).NotTo(HaveOccurred())
 }
@@ -81,7 +81,7 @@ func removeMachineSetLabel(machineset machinev1.MachineSet, label string) {
 }
 
 func removeMachineSetTaint(machineset machinev1.MachineSet, key string) {
-	var newTaints []v1.Taint
+	var newTaints []corev1.Taint
 
 	for i, taint := range machineset.Spec.Template.Spec.Taints {
 		if taint.Key == key {

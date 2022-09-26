@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	machinev1 "github.com/openshift/api/machine/v1beta1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -82,11 +82,11 @@ func hasMatchingLabels(machineSet *machinev1.MachineSet, machine *machinev1.Mach
 }
 
 // GetNodeForMachine returns the node that is referenced in the machine resource
-func GetNodeForMachine(c client.Client, m *machinev1.Machine) (*v1.Node, error) {
-	node := &v1.Node{}
+func GetNodeForMachine(c client.Client, m *machinev1.Machine) (*corev1.Node, error) {
+	node := &corev1.Node{}
 	err := c.Get(context.TODO(), types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
 	if err != nil {
-		return &v1.Node{}, err
+		return &corev1.Node{}, err
 	}
 	return node, err
 }
