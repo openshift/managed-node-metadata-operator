@@ -12,7 +12,7 @@ spec:
   namespaceSelector:
     any: false
     matchNames:
-      - managed-node-metadata-operator
+      - openshift-managed-node-metadata-operator
   selector:
     matchLabels:
       name: managed-node-metadata-operator
