@@ -232,5 +232,6 @@ func (r MachinesetReconciler) updateTaintsInNode(ctx context.Context, machine *m
 func (r *MachinesetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&machinev1.MachineSet{}).
+		Named("machineset_controller").
 		Complete(r)
 }
