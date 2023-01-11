@@ -3,7 +3,6 @@ approvers:
 - iamkirkbater
 - mrWinston
 - dkeohane
-- macgregor
 - AlexVulaj
 - bergmannf
 reviewers:
@@ -11,7 +10,6 @@ reviewers:
 - iamkirkbater
 - mrWinston
 - dkeohane
-- macgregor
 - AlexVulaj
 - bergmannf
 maintainers:
