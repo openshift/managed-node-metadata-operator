@@ -6,7 +6,7 @@ metadata:
   annotations:
     categories: A list of comma separated categories that your operator falls under.
     certified: "false"
-    description: Operator to manage VPC Endpoints for OpenShift Dedicated Clusters.
+    description: Directional metadata sync operator from MachineSets to existing Nodes.
     containerImage: quay.io/app-sre/managed-node-metadata-operator:latest
     createdAt: "2020-11-03T10:41:36Z"
     support: Red Hat SRE
