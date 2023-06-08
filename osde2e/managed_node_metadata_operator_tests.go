@@ -11,12 +11,12 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	sdk "github.com/openshift-online/ocm-sdk-go"
 	clustersmgmtv1 "github.com/openshift-online/ocm-sdk-go/clustersmgmt/v1"
 	machinev1beta1 "github.com/openshift/api/machine/v1beta1"
+	"github.com/openshift/osde2e-common/pkg/clients/ocm"
+	"github.com/openshift/osde2e-common/pkg/clients/openshift"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -24,35 +24,24 @@ import (
 
 var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func() {
 	var (
-		k8s             *resources.Resources
-		ocm             *clustersmgmtv1.ClusterClient
-		machinepoolName string
-		machineSetName  string
-		clusterID       string
+		k8s              *openshift.Client
+		ocmClusterClient *clustersmgmtv1.ClusterClient
+		machinepoolName  string
+		machineSetName   string
+		clusterID        string
 	)
 
 	ginkgo.BeforeAll(func(ctx context.Context) {
 		clusterID = os.Getenv("CLUSTER_ID")
 		Expect(clusterID).ShouldNot(BeEmpty(), "CLUSTER_ID is required but not set")
 
-		ocmToken := os.Getenv("OCM_TOKEN")
-		Expect(ocmToken).ShouldNot(BeEmpty(), "OCM_TOKEN is required but not set")
-
-		ocmEnv := os.Getenv("OCM_ENVIRONMENT")
-		Expect([]string{"stage", "prod"}).Should(ContainElement(ocmEnv), "invalid OCM_ENVIRONMENT")
-		ocmURL := "https://api.openshift.com"
-		if ocmEnv == "stage" {
-			ocmURL = "https://api.stage.openshift.com"
-		}
-
-		// build the OCM connection
-		ocmConn, err := sdk.NewConnectionBuilder().URL(ocmURL).Tokens(ocmToken).BuildContext(ctx)
-		Expect(err).Should(BeNil(), "sdk.NewConnectionBuilder failed")
-		ginkgo.DeferCleanup(ocmConn.Close)
+		ocmConn, err := ocm.New(ctx, os.Getenv("OCM_TOKEN"), ocm.Stage)
+		Expect(err).ShouldNot(HaveOccurred(), "unable to setup ocm client")
+		ginkgo.DeferCleanup(ocmConn.Connection.Close)
 
 		// create the specific cluster OCM client
-		ocm = ocmConn.ClustersMgmt().V1().Clusters().Cluster(clusterID)
-		clusterResp, err := ocm.Get().SendContext(ctx)
+		ocmClusterClient = ocmConn.ClustersMgmt().V1().Clusters().Cluster(clusterID)
+		clusterResp, err := ocmClusterClient.Get().SendContext(ctx)
 		Expect(err).Should(BeNil(), "unable to fetch cluster %s", clusterID)
 
 		cluster := clusterResp.Body()
@@ -61,22 +50,18 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 			machinepoolReplicaCount = 3
 		}
 
-		// setup the k8s client
-		cfg, err := config.GetConfig()
-		Expect(err).Should(BeNil(), "failed to get kubeconfig")
-		k8s, err = resources.New(cfg)
-		Expect(err).Should(BeNil(), "resources.New error")
-		Expect(machinev1beta1.AddToScheme(k8s.GetScheme())).Should(BeNil(), "machinev1beta1.AddToScheme error")
+		k8s, err = openshift.New()
+		Expect(err).ShouldNot(HaveOccurred(), "unable to setup k8s client")
 
 		machinepoolName = envconf.RandomName("osde2e", 10)
 		machinepoolBuilder := clustersmgmtv1.NewMachinePool().ID(machinepoolName).InstanceType("m5.xlarge").Replicas(machinepoolReplicaCount)
 		machinepool, err := machinepoolBuilder.Build()
 		Expect(err).Should(BeNil(), "machinepoolBuilder.Build failed")
-		_, err = ocm.MachinePools().Add().Body(machinepool).SendContext(ctx)
+		_, err = ocmClusterClient.MachinePools().Add().Body(machinepool).SendContext(ctx)
 		Expect(err).Should(BeNil(), "failed to create machinepool")
 
 		// delete the pool at the end
-		ginkgo.DeferCleanup(ocm.MachinePools().MachinePool(machinepoolName).Delete().SendContext)
+		ginkgo.DeferCleanup(ocmClusterClient.MachinePools().MachinePool(machinepoolName).Delete().SendContext)
 
 		// wait for it to be ready
 		err = wait.For(func() (bool, error) {
@@ -142,7 +127,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 	ginkgo.DescribeTable("labels are synced", func(ctx context.Context, lbls map[string]string) {
 		machinepool, err := clustersmgmtv1.NewMachinePool().ID(machinepoolName).Labels(lbls).Build()
 		Expect(err).Should(BeNil(), "failed to build machinepool with labels")
-		_, err = ocm.MachinePools().MachinePool(machinepoolName).Update().Body(machinepool).SendContext(ctx)
+		_, err = ocmClusterClient.MachinePools().MachinePool(machinepoolName).Update().Body(machinepool).SendContext(ctx)
 		Expect(err).Should(BeNil(), "failed to update machinepool labels")
 		Expect(wait.For(nodesTo(ctx, lbls, haveLabels), wait.WithTimeout(2*time.Minute))).Should(BeNil(), "waiting for labels to be synced failed")
 	},
@@ -158,7 +143,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		}
 		machinepool, err := clustersmgmtv1.NewMachinePool().ID(machinepoolName).Taints(taintBuilders...).Build()
 		Expect(err).Should(BeNil(), "failed to build machinepool with taints")
-		_, err = ocm.MachinePools().MachinePool(machinepoolName).Update().Body(machinepool).SendContext(ctx)
+		_, err = ocmClusterClient.MachinePools().MachinePool(machinepoolName).Update().Body(machinepool).SendContext(ctx)
 		Expect(err).Should(BeNil(), "failed to update machinepool taints")
 		Expect(wait.For(nodesTo(ctx, taintMap, haveTaint), wait.WithTimeout(2*time.Minute))).Should(BeNil(), "waiting for taints to be synced failed")
 	},
