@@ -11,10 +11,7 @@ parameters:
     value: quay.io/app-sre
   - name: IMAGE_REPOSITORY
     displayName: Image Repository
-    value: osde2e
-  - name: IMAGE_TAG
-    displayName: Osde2e image Tag
-    value: latest    
+    value: osde2e 
   - name: HARNESS_IMAGE_TAG
     displayName: Test harness image Tag
   - name: OSDE2E_CONFIGS
@@ -38,7 +35,7 @@ objects:
           restartPolicy: Never
           containers:
             - name: osde2e
-              image: ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${IMAGE_TAG}
+              image: ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:latest
               command:
                 - /osde2e
               args:
