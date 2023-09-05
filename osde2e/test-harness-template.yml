@@ -13,10 +13,10 @@ parameters:
     displayName: Image Repository
     value: osde2e
   - name: IMAGE_TAG
-    displayName: Image Tag
+    displayName: Osde2e image Tag
     value: latest    
   - name: HARNESS_IMAGE_TAG
-    displayName: Image Tag
+    displayName: Test harness image Tag
   - name: OSDE2E_CONFIGS
     displayName: osde2e Configs
     description: pre-baked configuration from the osde2e repository
