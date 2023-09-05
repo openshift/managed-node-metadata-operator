@@ -9,10 +9,13 @@ import (
 	"os"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	clustersmgmtv1 "github.com/openshift-online/ocm-sdk-go/clustersmgmt/v1"
 	machinev1beta1 "github.com/openshift/api/machine/v1beta1"
+	"github.com/openshift/managed-node-metadata-operator/config"
 	"github.com/openshift/osde2e-common/pkg/clients/ocm"
 	"github.com/openshift/osde2e-common/pkg/clients/openshift"
 	corev1 "k8s.io/api/core/v1"
@@ -49,8 +52,8 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		if cluster.MultiAZ() {
 			machinepoolReplicaCount = 3
 		}
-
-		k8s, err = openshift.New()
+		log.SetLogger(ginkgo.GinkgoLogr)
+		k8s, err = openshift.New(ginkgo.GinkgoLogr)
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup k8s client")
 
 		machinepoolName = envconf.RandomName("osde2e", 10)
@@ -151,4 +154,10 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		ginkgo.Entry("updated", map[string]string{"key": "osde2e", "value": "two", "effect": "NoExecute"}),
 		ginkgo.Entry("deleted", map[string]string{}),
 	)
+
+	ginkgo.It("can be upgraded", func(ctx context.Context) {
+		err := k8s.UpgradeOperator(ctx, config.OperatorName, config.OperatorNamespace)
+		Expect(err).NotTo(HaveOccurred(), "operator upgrade failed")
+	})
+
 })
