@@ -14,7 +14,9 @@ parameters:
     value: osde2e
   - name: IMAGE_TAG
     displayName: Image Tag
-    value: latest
+    value: latest    
+  - name: HARNESS_IMAGE_TAG
+    displayName: Image Tag
   - name: OSDE2E_CONFIGS
     displayName: osde2e Configs
     description: pre-baked configuration from the osde2e repository
@@ -53,22 +55,12 @@ objects:
                   type: RuntimeDefault
               env:
                 - name: TEST_HARNESSES
-                  value: ${TEST_HARNESS_IMAGE}
+                  value: ${TEST_HARNESS_IMAGE}:${HARNESS_IMAGE_TAG}
                 - name: OCM_TOKEN
-                  valueFrom:
-                    secretKeyRef:
-                      name: ocm
-                      key: ocm-token
+                  value: ${OCM_TOKEN}
                 - name: AWS_ACCESS_KEY_ID
-                  valueFrom:
-                    secretKeyRef:
-                      name: sdcicd-aws
-                      key: aws-access-key-id
+                  value: ${AWS_ACCESS_KEY_ID}
                 - name: AWS_SECRET_ACCESS_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: sdcicd-aws
-                      key: aws-secret-access-key
-                # TODO: set this differently
+                  value: ${AWS_SECRET_ACCESS_KEY}
                 - name: AWS_REGION
-                  value: us-east-1
+                  value: ${AWS_REGION}
