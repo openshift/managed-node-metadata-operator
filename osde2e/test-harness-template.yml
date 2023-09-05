@@ -6,12 +6,6 @@ metadata:
 labels:
   template: osde2e-focused-tests
 parameters:
-  - name: IMAGE_REGISTRY
-    displayName: Image Registry
-    value: quay.io/app-sre
-  - name: IMAGE_REPOSITORY
-    displayName: Image Repository
-    value: osde2e 
   - name: HARNESS_IMAGE_TAG
     displayName: Test harness image Tag
   - name: OSDE2E_CONFIGS
@@ -35,7 +29,7 @@ objects:
           restartPolicy: Never
           containers:
             - name: osde2e
-              image: ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:latest
+              image: quay.io/app-sre:latest
               command:
                 - /osde2e
               args:
