@@ -29,7 +29,7 @@ objects:
           restartPolicy: Never
           containers:
             - name: osde2e
-              image: quay.io/app-sre:latest
+              image: quay.io/app-sre/osde2e:latest
               command:
                 - /osde2e
               args:
