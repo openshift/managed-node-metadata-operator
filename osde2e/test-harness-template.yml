@@ -24,6 +24,7 @@ objects:
     kind: Job
     metadata:
       generateName: osde2e-focused-tests-
+      name: osde2e-focused-test-job
     spec:
       backoffLimit: 0
       template:
