@@ -90,7 +90,7 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 		node, err := m.GetNodeForMachine(r.Client, machine)
 		if err != nil {
 			klog.Errorf("failed to fetch node for machine %s", machine.Name)
-			metrics.NodeReconciliationFailure.WithLabelValues(machine.Name).Add(1.0)
+			metrics.IncreaseNodeReconciliationFailure(machine.Name)
 			return reconcile.Result{}, err
 		}
 		expectedLabels := r.getExpectedLabels(ctx, machineSet, machine, node)
@@ -100,25 +100,25 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 		// Update labels in machine
 		err = r.updateLabelsInMachine(ctx, machine, expectedLabels)
 		if err != nil {
-			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
+			metrics.IncreaseNodeReconciliationFailure(node.Name)
 			return reconcile.Result{}, err
 		}
 		// Update taints in machine
 		err = r.updateTaintsInMachine(ctx, machineSet, machine)
 		if err != nil {
-			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
+			metrics.IncreaseNodeReconciliationFailure(node.Name)
 			return reconcile.Result{}, err
 		}
 		//Update labels in node
 		err = r.updateLabelsInNode(ctx, node, expectedLabels)
 		if err != nil {
-			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
+			metrics.IncreaseNodeReconciliationFailure(node.Name)
 			return reconcile.Result{}, err
 		}
 		// Update taints in node
 		err = r.updateTaintsInNode(ctx, machine, node)
 		if err != nil {
-			metrics.NodeReconciliationFailure.WithLabelValues(node.Name).Add(1.0)
+			metrics.IncreaseNodeReconciliationFailure(node.Name)
 			return reconcile.Result{}, err
 		}
 	}
