@@ -86,7 +86,7 @@ fi
 # graphql.
 if [[ -z "$SKIP_SAAS_FILE_CHECKS" ]]; then
     # PATH to saas file in app-interface
-    SAAS_FILE_URL="https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${operator_name}.yaml"
+    SAAS_FILE_URL="https://gitlab.cee.redhat.com/service/app-interface/raw/master/data/services/osd-operators/cicd/saas/saas-${operator_name}/deploy.yaml"
 
     # MANAGED_RESOURCE_TYPE
     # SAAS files contain the type of resources managed within the OC templates that
