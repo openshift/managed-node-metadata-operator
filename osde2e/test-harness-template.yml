@@ -19,12 +19,14 @@ parameters:
     required: true
   - name: AWS_REGION
     required: true
+  - name: JOBID
+    generate: expression
+    from: "[0-9a-z]{7}"
 objects:
   - apiVersion: batch/v1
     kind: Job
     metadata:
-      generateName: osde2e-focused-tests-
-      name: osde2e-focused-test-job
+      name: osde2e-focused-test-job-${HARNESS_IMAGE_TAG}-${JOBID}
     spec:
       backoffLimit: 0
       template:
