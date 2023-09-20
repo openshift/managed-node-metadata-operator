@@ -22,11 +22,14 @@ parameters:
   - name: JOBID
     generate: expression
     from: "[0-9a-z]{7}"
+  - name: IMAGE_TAG
+    value: ''
+    required: true
 objects:
   - apiVersion: batch/v1
     kind: Job
     metadata:
-      name: osde2e-focused-test-job-${JOBID}
+      name: osde2e-focused-test-job-${IMAGE_TAG}-${JOBID}
     spec:
       backoffLimit: 0
       template:
