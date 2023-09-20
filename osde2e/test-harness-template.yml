@@ -26,7 +26,7 @@ objects:
   - apiVersion: batch/v1
     kind: Job
     metadata:
-      name: osde2e-focused-test-job-${HARNESS_IMAGE_TAG}-${JOBID}
+      name: osde2e-focused-test-job-${JOBID}
     spec:
       backoffLimit: 0
       template:
