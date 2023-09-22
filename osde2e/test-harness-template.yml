@@ -5,8 +5,6 @@ metadata:
   name: osde2e-focused-tests
 
 parameters:
-  - name: HARNESS_IMAGE_TAG
-    required: true
   - name: OSDE2E_CONFIGS
     required: true
   - name: TEST_HARNESS_IMAGE
@@ -53,7 +51,7 @@ objects:
                   type: RuntimeDefault
               env:
                 - name: TEST_HARNESSES
-                  value: ${TEST_HARNESS_IMAGE}:${HARNESS_IMAGE_TAG}
+                  value: ${TEST_HARNESS_IMAGE}:${IMAGE_TAG}
                 - name: OCM_TOKEN
                   value: ${OCM_TOKEN}
                 - name: AWS_ACCESS_KEY_ID
