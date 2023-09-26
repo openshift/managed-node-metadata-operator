@@ -35,8 +35,8 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 	)
 
 	ginkgo.BeforeAll(func(ctx context.Context) {
-		clusterID = os.Getenv("CLUSTER_ID")
-		Expect(clusterID).ShouldNot(BeEmpty(), "CLUSTER_ID is required but not set")
+		clusterID = os.Getenv("OCM_CLUSTER_ID")
+		Expect(clusterID).ShouldNot(BeEmpty(), "OCM_CLUSTER_ID is required but not set")
 
 		ocmConn, err := ocm.New(ctx, os.Getenv("OCM_TOKEN"), ocm.Stage)
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup ocm client")

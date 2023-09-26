@@ -7,13 +7,14 @@ package osde2etests
 import (
 	"path/filepath"
 	"testing"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 const (
 	testResultsDirectory = "/test-run-results"
-	jUnitOutputFilename  = "junit-example-addon.xml"
+	jUnitOutputFilename  = "junit-managed-node-metadata-operator.xml"
 )
 
 // Test entrypoint. osde2e runs this as a test suite on test pod.
@@ -25,4 +26,3 @@ func TestManagedNodeMetadataOperator(t *testing.T) {
 	RunSpecs(t, "Managed Node Metadata Operator", suiteConfig, reporterConfig)
 
 }
-
