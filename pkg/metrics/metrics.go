@@ -16,3 +16,8 @@ var (
 func init() {
 	metrics.Registry.MustRegister(NodeReconciliationFailure)
 }
+
+// IncreaseNodeReconciliationFailure Adds 1
+func IncreaseNodeReconciliationFailure(node string) {
+	NodeReconciliationFailure.WithLabelValues(node).Add(1.0)
+}
