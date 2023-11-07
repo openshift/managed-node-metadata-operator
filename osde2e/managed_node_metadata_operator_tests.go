@@ -27,18 +27,34 @@ import (
 
 var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func() {
 	var (
-		k8s              *openshift.Client
-		ocmClusterClient *clustersmgmtv1.ClusterClient
-		machinepoolName  string
-		machineSetName   string
-		clusterID        string
+		err                     error
+		k8s                     *openshift.Client
+		ocmClusterClient        *clustersmgmtv1.ClusterClient
+		passthruSecrets         corev1.Secret
+		machinepoolName         string
+		machineSetName          string
+		clusterID               string
+		passthruSecretNamespace = "osde2e-ci-secrets"
+		passthruSecretName      = "ci-secrets"
+		ocmTokenSecretKey       = "ocm-token-refresh"
 	)
 
 	ginkgo.BeforeAll(func(ctx context.Context) {
 		clusterID = os.Getenv("OCM_CLUSTER_ID")
 		Expect(clusterID).ShouldNot(BeEmpty(), "OCM_CLUSTER_ID is required but not set")
 
-		ocmConn, err := ocm.New(ctx, os.Getenv("OCM_TOKEN"), ocm.Stage)
+		log.SetLogger(ginkgo.GinkgoLogr)
+		k8s, err = openshift.New(ginkgo.GinkgoLogr)
+		Expect(err).ShouldNot(HaveOccurred(), "unable to setup k8s client")
+
+		// Get passthru secret
+		err = k8s.Get(ctx, passthruSecretName, passthruSecretNamespace, &passthruSecrets)
+		Expect(passthruSecrets.Data).ShouldNot(BeEmpty(), "Failed to get passthru secrets data")
+		Expect(passthruSecrets.Data[ocmTokenSecretKey]).ShouldNot(BeEmpty(), "Failed to get OCM token bytes from passthru secret")
+		ocmtoken := string(passthruSecrets.Data[ocmTokenSecretKey])
+		Expect(ocmtoken).ShouldNot(BeEmpty(), "Failed to get OCM token string from passthru secret")
+
+		ocmConn, err := ocm.New(ctx, ocmtoken, ocm.Stage)
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup ocm client")
 		ginkgo.DeferCleanup(ocmConn.Connection.Close)
 
@@ -52,9 +68,6 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		if cluster.MultiAZ() {
 			machinepoolReplicaCount = 3
 		}
-		log.SetLogger(ginkgo.GinkgoLogr)
-		k8s, err = openshift.New(ginkgo.GinkgoLogr)
-		Expect(err).ShouldNot(HaveOccurred(), "unable to setup k8s client")
 
 		machinepoolName = envconf.RandomName("osde2e", 10)
 		machinepoolBuilder := clustersmgmtv1.NewMachinePool().ID(machinepoolName).InstanceType("m5.xlarge").Replicas(machinepoolReplicaCount)
@@ -159,5 +172,4 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		err := k8s.UpgradeOperator(ctx, config.OperatorName, config.OperatorNamespace)
 		Expect(err).NotTo(HaveOccurred(), "operator upgrade failed")
 	})
-
 })
