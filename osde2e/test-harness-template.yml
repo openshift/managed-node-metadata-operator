@@ -12,7 +12,7 @@ parameters:
   - name: OCM_TOKEN
     required: true
   - name: AWS_ACCESS_KEY_ID
-    required: true    
+    required: true
   - name: AWS_SECRET_ACCESS_KEY
     required: true
   - name: AWS_REGION
@@ -23,11 +23,13 @@ parameters:
   - name: IMAGE_TAG
     value: ''
     required: true
+  - name: LOG_BUCKET
+    value: 'osde2e-logs'
 objects:
   - apiVersion: batch/v1
     kind: Job
     metadata:
-      name: osde2e-focused-test-job-${IMAGE_TAG}-${JOBID}
+      name: osde2e-managed-node-metadata-operator-${IMAGE_TAG}-${JOBID}
     spec:
       backoffLimit: 0
       template:
@@ -60,3 +62,5 @@ objects:
                   value: ${AWS_SECRET_ACCESS_KEY}
                 - name: AWS_REGION
                   value: ${AWS_REGION}
+                - name: LOG_BUCKET
+                  value: ${LOG_BUCKET}                 
