@@ -63,4 +63,6 @@ objects:
                 - name: AWS_REGION
                   value: ${AWS_REGION}
                 - name: LOG_BUCKET
-                  value: ${LOG_BUCKET}                 
+                  value: ${LOG_BUCKET}   
+                - name: HARNESS_TIMEOUT
+                  value: 600
