@@ -65,4 +65,4 @@ objects:
                 - name: LOG_BUCKET
                   value: ${LOG_BUCKET}   
                 - name: HARNESS_TIMEOUT
-                  value: 600
+                  value: "600"
