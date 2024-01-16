@@ -582,5 +582,34 @@ var _ = Describe("MachinesetController", func() {
 			})
 		})
 
+		Context("When a duplicate taint is added", func() {
+			BeforeEach(func() {
+				newTaintsInMachine = []corev1.Taint{
+					corev1.Taint{
+						Key:    "test",
+						Value:  "test",
+						Effect: "NoSchedule",
+					},
+					corev1.Taint{
+						Key:    "test",
+						Value:  "test",
+						Effect: "NoSchedule",
+					},
+				}
+				existingTaintsInNode = []corev1.Taint{}
+				updatedTaintsInNode = []corev1.Taint{
+					corev1.Taint{
+						Key:    "test",
+						Value:  "test",
+						Effect: "NoSchedule",
+					},
+				}
+			})
+			It("it should update the node, but indicate the error", func() {
+				err = r.updateTaintsInNode(ctx, &machine, &node)
+				Expect(err).To(HaveOccurred())
+				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
+			})
+		})
 	})
 })

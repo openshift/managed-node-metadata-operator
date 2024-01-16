@@ -43,6 +43,14 @@ type MachinesetReconciler struct {
 	Recorder record.EventRecorder
 }
 
+type DuplicateTaintError struct {
+	Message string
+}
+
+func (d DuplicateTaintError) Error() string {
+	return d.Message
+}
+
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
@@ -119,6 +127,10 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 		err = r.updateTaintsInNode(ctx, machine, node)
 		if err != nil {
 			metrics.IncreaseNodeReconciliationFailure(node.Name)
+			if derr, ok := err.(DuplicateTaintError); ok {
+				log.Log.Info("found duplicate taint on machine spec", "error", derr.Message)
+				return reconcile.Result{Requeue: false}, nil
+			}
 			return reconcile.Result{}, err
 		}
 	}
@@ -226,7 +238,8 @@ func (r *MachinesetReconciler) updateTaintsInNode(ctx context.Context, machine *
 		Effect: corev1.TaintEffectNoSchedule,
 	}
 
-	expectedTaints := machine.Spec.Taints
+	expectedTaints, duplicateTaintErr := CheckDuplicateTaints(machine.Spec.Taints)
+	// expectedTaints := machine.Spec.Taints
 	for _, taint := range node.Spec.Taints {
 		if taint.MatchTaint(noScheduleTaint) {
 			expectedTaints = append(expectedTaints, taint)
@@ -242,7 +255,22 @@ func (r *MachinesetReconciler) updateTaintsInNode(ctx context.Context, machine *
 		}
 	}
 
-	return nil
+	return duplicateTaintErr
+}
+
+func CheckDuplicateTaints(taints []corev1.Taint) ([]corev1.Taint, error) {
+	var err error = nil
+	tmpTaints := make(map[corev1.Taint]bool, len(taints))
+	uniqueTaints := make([]corev1.Taint, 0)
+	for _, taint := range taints {
+		if _, value := tmpTaints[taint]; !value {
+			tmpTaints[taint] = true
+			uniqueTaints = append(uniqueTaints, taint)
+		} else {
+			err = DuplicateTaintError{Message: fmt.Sprintf("duplicate taint in machine spec found - will be ignored: %v", taint)}
+		}
+	}
+	return uniqueTaints, err
 }
 
 // TaintExists checks if the given taint exists in list of taints. Returns true if exists false otherwise.
