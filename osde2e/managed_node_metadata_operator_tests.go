@@ -59,7 +59,9 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		machinepoolName = envconf.RandomName("osde2e", 10)
 		var instanceType = "m5.xlarge"
 		if cluster.CloudProvider().ID() == "gcp" {
-			instanceType = "c2-standard-4"
+			// https://docs.openshift.com/dedicated/osd_architecture/osd_policy/osd-service-definition.html#gcp-compute-types_osd-service-definition
+			// In osde2e, this is a non-CCS OSD GCP cluster with very limited instance type support
+			instanceType = "custom-4-16384"
 		}
 		machinepoolBuilder := clustersmgmtv1.NewMachinePool().ID(machinepoolName).InstanceType(instanceType).Replicas(machinepoolReplicaCount)
 		machinepool, err := machinepoolBuilder.Build()
