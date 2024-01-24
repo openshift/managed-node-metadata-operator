@@ -57,7 +57,11 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup k8s client")
 
 		machinepoolName = envconf.RandomName("osde2e", 10)
-		machinepoolBuilder := clustersmgmtv1.NewMachinePool().ID(machinepoolName).InstanceType("m5.xlarge").Replicas(machinepoolReplicaCount)
+		var instanceType = "m5.xlarge"
+		if cluster.CloudProvider().ID() == "gcp" {
+			instanceType = "c2-standard-4"
+		}
+		machinepoolBuilder := clustersmgmtv1.NewMachinePool().ID(machinepoolName).InstanceType(instanceType).Replicas(machinepoolReplicaCount)
 		machinepool, err := machinepoolBuilder.Build()
 		Expect(err).Should(BeNil(), "machinepoolBuilder.Build failed")
 		_, err = ocmClusterClient.MachinePools().Add().Body(machinepool).SendContext(ctx)
