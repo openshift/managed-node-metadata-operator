@@ -63,11 +63,25 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 			// In osde2e, this is a non-CCS OSD GCP cluster with very limited instance type support
 			instanceType = "custom-4-16384"
 		}
+
 		machinepoolBuilder := clustersmgmtv1.NewMachinePool().ID(machinepoolName).InstanceType(instanceType).Replicas(machinepoolReplicaCount)
 		machinepool, err := machinepoolBuilder.Build()
 		Expect(err).Should(BeNil(), "machinepoolBuilder.Build failed")
-		_, err = ocmClusterClient.MachinePools().Add().Body(machinepool).SendContext(ctx)
-		Expect(err).Should(BeNil(), "failed to create machinepool")
+		// Attempt to create the machinepool 3 times, with a slight wait between.
+		// During testing this locally, (sometimes) the MP Add() didn't error, but no MP was created in OCM at all.
+		retryAttempts := 3
+		for i := 1; i <= retryAttempts; i++ {
+			_, err = ocmClusterClient.MachinePools().Add().Body(machinepool).SendContext(ctx)
+			Expect(err).Should(BeNil(), "failed to create machinepool")
+
+			_, err = ocmClusterClient.MachinePools().MachinePool(machinepoolName).Get().SendContext(ctx)
+			if err == nil {
+				break
+			}
+			log.Log.Info("unable to find machinepool object in OCM.. retrying", "err", err, "attempt", i)
+			time.Sleep(10 * time.Second)
+		}
+		Expect(err).Should(BeNil(), "failed to create machinepool after retrying")
 
 		// delete the pool at the end
 		ginkgo.DeferCleanup(ocmClusterClient.MachinePools().MachinePool(machinepoolName).Delete().SendContext)
