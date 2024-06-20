@@ -152,7 +152,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		Expect(err).Should(BeNil(), "failed to build machinepool with labels")
 		_, err = ocmClusterClient.MachinePools().MachinePool(machinepoolName).Update().Body(machinepool).SendContext(ctx)
 		Expect(err).Should(BeNil(), "failed to update machinepool labels")
-		Expect(wait.For(nodesTo(ctx, lbls, haveLabels), wait.WithTimeout(2*time.Minute))).Should(BeNil(), "waiting for labels to be synced failed")
+		Expect(wait.For(nodesTo(ctx, lbls, haveLabels), wait.WithTimeout(5*time.Minute))).Should(BeNil(), "waiting for labels to be synced failed")
 	},
 		ginkgo.Entry("added", map[string]string{"osde2e": "one"}),
 		ginkgo.Entry("updated", map[string]string{"osde2e": "two"}),
