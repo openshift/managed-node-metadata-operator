@@ -8,7 +8,7 @@ import (
 var (
 	NodeReconciliationFailure = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "mnmo_node_reconciliation_failure",
-		Help:        "Reconciliation failures occuring when updating a specific node",
+		Help:        "Reconciliation failures occurring when updating a specific node",
 		ConstLabels: map[string]string{},
 	}, []string{"node"})
 )

@@ -29,7 +29,7 @@ var _ = Describe("Webhook Handlers", func() {
 	Context("Service Log Sent metric", func() {
 		var (
 			metricHelpHeader = `
-# HELP mnmo_node_reconciliation_failure Reconciliation failures occuring when updating a specific node
+# HELP mnmo_node_reconciliation_failure Reconciliation failures occurring when updating a specific node
 # TYPE mnmo_node_reconciliation_failure counter
 `
 			metricValueHeader = fmt.Sprintf(`mnmo_node_reconciliation_failure{node="%s"} `, testNodename)
