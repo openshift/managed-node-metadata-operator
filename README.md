@@ -37,3 +37,4 @@ Refer to the [development and testing guide](docs/development-and-testing.md) to
 ## Boilerplate
 This repository subscribes to the [openshift/golang-osd-operator](https://github.com/openshift/boilerplate/tree/master/boilerplate/openshift/golang-osd-operator) convention of [boilerplate](https://github.com/openshift/boilerplate/).
 See the [README](boilerplate/openshift/golang-osd-operator/README.md) for details about the functionality that brings in.
+
