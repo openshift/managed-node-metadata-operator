@@ -1,0 +1,10 @@
+apiVersion: package-operator.run/v1alpha1
+kind: ClusterPackage
+metadata:
+  name: managed-node-metadata-operator
+  annotations:
+    package-operator.run/collision-protection: IfNoController
+spec:
+  image: quay.io/fbergman/managed-node-metadata-operator-pko:0.3.5
+  config:
+    image: "quay.io/app-sre/managed-node-metadata-operator@sha256:0e9895e3a61164c9082624352c48d9cfa92425b82d30943cde1afa8c41be0343"
