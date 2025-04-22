@@ -38,7 +38,18 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		clusterID = os.Getenv("OCM_CLUSTER_ID")
 		Expect(clusterID).ShouldNot(BeEmpty(), "OCM_CLUSTER_ID is required but not set")
 
-		ocmConn, err := ocm.New(ctx, os.Getenv("OCM_TOKEN"), ocm.Stage)
+		var ocmUrl ocm.Environment
+
+		switch os.Getenv("OCM_ENV") {
+		case "stage":
+			ocmUrl = ocm.Stage
+		case "int":
+			ocmUrl = ocm.Integration
+		default:
+			ginkgo.Fail("Unexpected OCM_ENV - use 'stage' or 'int'")
+		}
+
+		ocmConn, err := ocm.New(ctx, os.Getenv("OCM_TOKEN"), ocmUrl)
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup ocm client")
 		ginkgo.DeferCleanup(ocmConn.Connection.Close)
 
