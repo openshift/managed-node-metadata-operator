@@ -32,6 +32,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		machinepoolName  string
 		machineSetName   string
 		clusterID        string
+		ns               string = "openshift-machine-api"
 	)
 
 	ginkgo.BeforeAll(func(ctx context.Context) {
@@ -78,30 +79,22 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		machinepoolBuilder := clustersmgmtv1.NewMachinePool().ID(machinepoolName).InstanceType(instanceType).Replicas(machinepoolReplicaCount)
 		machinepool, err := machinepoolBuilder.Build()
 		Expect(err).Should(BeNil(), "machinepoolBuilder.Build failed")
-		// Attempt to create the machinepool 3 times, with a slight wait between.
-		// During testing this locally, (sometimes) the MP Add() didn't error, but no MP was created in OCM at all.
-		retryAttempts := 3
-		for i := 1; i <= retryAttempts; i++ {
+
+		err = wait.For(func() (bool, error) {
 			_, err = ocmClusterClient.MachinePools().Add().Body(machinepool).SendContext(ctx)
 			Expect(err).Should(BeNil(), "failed to create machinepool")
-
 			_, err = ocmClusterClient.MachinePools().MachinePool(machinepoolName).Get().SendContext(ctx)
-			if err == nil {
-				break
-			}
-			log.Log.Info("unable to find machinepool object in OCM.. retrying", "err", err, "attempt", i)
-			time.Sleep(10 * time.Second)
-		}
+			return err == nil, err
+		}, wait.WithTimeout(60*time.Second), wait.WithInterval(10*time.Second))
 		Expect(err).Should(BeNil(), "failed to create machinepool after retrying")
 
 		// delete the pool at the end
 		ginkgo.DeferCleanup(ocmClusterClient.MachinePools().MachinePool(machinepoolName).Delete().SendContext)
 
-		// wait for it to be ready
 		err = wait.For(func() (bool, error) {
 			lblSel := resources.WithLabelSelector(labels.FormatLabels(map[string]string{"hive.openshift.io/machine-pool": machinepoolName}))
 			var machineSetList machinev1beta1.MachineSetList
-			if err = k8s.WithNamespace("openshift-machine-api").List(ctx, &machineSetList, lblSel); err != nil {
+			if err = k8s.WithNamespace(ns).List(ctx, &machineSetList, lblSel); err != nil {
 				return false, fmt.Errorf("unable to list machinesets: %w", err)
 			}
 			if len(machineSetList.Items) < 1 {
@@ -142,7 +135,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		return func() (bool, error) {
 			lblSel := resources.WithLabelSelector(labels.FormatLabels(map[string]string{"machine.openshift.io/cluster-api-machineset": machineSetName}))
 			var machineList machinev1beta1.MachineList
-			if err := k8s.WithNamespace("openshift-machine-api").List(ctx, &machineList, lblSel); err != nil {
+			if err := k8s.WithNamespace(ns).List(ctx, &machineList, lblSel); err != nil {
 				return false, fmt.Errorf("unable to list machines: %w", err)
 			}
 			for _, machine := range machineList.Items {
