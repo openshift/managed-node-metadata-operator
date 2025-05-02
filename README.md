@@ -38,3 +38,20 @@ Refer to the [development and testing guide](docs/development-and-testing.md) to
 This repository subscribes to the [openshift/golang-osd-operator](https://github.com/openshift/boilerplate/tree/master/boilerplate/openshift/golang-osd-operator) convention of [boilerplate](https://github.com/openshift/boilerplate/).
 See the [README](boilerplate/openshift/golang-osd-operator/README.md) for details about the functionality that brings in.
 
+## Running Tests Locally
+
+Note that the tests expect that three environment variables are set for the tests to be able to run.  The suite will quickly fail if these are unset:
+
+- `OCM_TOKEN`
+- `OCM_CLUSTER_ID`
+- `OCM_ENV`
+
+Here is an example of running the tests in a local environment:
+
+```bash
+$ cd <PROJECT_ROOT>/test/e2e/
+$ export OCM_TOKEN=$(ocm token)
+$ export OCM_CLUSTER_ID=<YOUR-CLUSTER-ID>
+$ export OCM_ENV=<stage|int>
+$ DISABLE_JUNIT_REPORT=true ginkgo run --tags=osde2e,e2e --procs 4 --flake-attempts 3 --trace -vv .
+
