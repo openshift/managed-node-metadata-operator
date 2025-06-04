@@ -6,24 +6,34 @@ metadata:
     name: annotation
 spec:
   scopes:
-  - Cluster
+    - Cluster
   phases:
-  - name: crds
-  - name: namespace
-  - name: rbac
-  - name: deploy
+    - name: namespace
+    - name: cleanup-rbac
+    - name: cleanup-deploy
+    - name: crds
+    - name: rbac
+    - name: deploy
   availibilityProbes:
-  - probes:
-    - condition:
-        type: Available
-        status: 'True'
-    - fieldsEqual:
-        fieldA: .status.updatedReplicas
-        fieldB: .status.replicas
-  - selector:
-      kind:
-        group: apps
-        kind: Deployment
+    - selector:
+        kind:
+          group: apps
+          kind: Deployment
+      probes:
+        - condition:
+            type: Available
+            status: "True"
+        - fieldsEqual:
+            fieldA: .status.updatedReplicas
+            fieldB: .status.replicas
+    - selector:
+        kind:
+          group: batch/v1
+          kind: Job
+      probes:
+        - condition:
+            type: Complete
+            status: "True"
   config:
     openAPIV3Schema:
       properties:
