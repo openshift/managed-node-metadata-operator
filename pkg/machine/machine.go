@@ -52,7 +52,7 @@ func shouldExcludeMachine(machineSet *machinev1.MachineSet, machine *machinev1.M
 		return true
 	}
 
-	if machine.ObjectMeta.DeletionTimestamp != nil {
+	if machine.DeletionTimestamp != nil {
 		return true
 	}
 
