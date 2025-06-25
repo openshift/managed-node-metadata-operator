@@ -70,7 +70,7 @@ func (r *MachinesetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Fetch the MachineSet instance
 	machineSet := &machinev1beta1.MachineSet{}
-	err := r.Client.Get(ctx, req.NamespacedName, machineSet)
+	err := r.Get(ctx, req.NamespacedName, machineSet)
 	if err != nil {
 		if k8serr.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -166,7 +166,7 @@ func (r *MachinesetReconciler) updateLabelsInMachine(ctx context.Context, m *mac
 		return nil
 	}
 	m.Spec.Labels = expectedLabels
-	err := r.Client.Update(ctx, m)
+	err := r.Update(ctx, m)
 	if err != nil {
 		klog.Errorf("failed to update label in %s", m.Name)
 		return err
@@ -178,7 +178,7 @@ func (r *MachinesetReconciler) updateLabelsInMachine(ctx context.Context, m *mac
 func (r *MachinesetReconciler) updateTaintsInMachine(ctx context.Context, machineSet *machinev1beta1.MachineSet, machine *machinev1beta1.Machine) error {
 	if !reflect.DeepEqual(machineSet.Spec.Template.Spec.Taints, machine.Spec.Taints) {
 		machine.Spec.Taints = machineSet.Spec.Template.Spec.Taints
-		if err := r.Client.Update(ctx, machine); err != nil {
+		if err := r.Update(ctx, machine); err != nil {
 			return fmt.Errorf("failed to update taint for machine %s: %w", machine.Name, err)
 		}
 	}
@@ -210,7 +210,7 @@ func (r *MachinesetReconciler) updateLabelsInNode(ctx context.Context, node *cor
 	// Update Annotations and Labels when new labels are added in machine
 	newAnnotationValue := ""
 	for newKey, newVal := range expectedLabels {
-		node.ObjectMeta.Labels[newKey] = newVal
+		node.Labels[newKey] = newVal
 		if newAnnotationValue != "" {
 			newAnnotationValue += ","
 		}
@@ -219,9 +219,9 @@ func (r *MachinesetReconciler) updateLabelsInNode(ctx context.Context, node *cor
 	if node.Annotations == nil {
 		node.Annotations = map[string]string{}
 	}
-	node.ObjectMeta.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
+	node.Annotations["managed.openshift.com/customlabels"] = newAnnotationValue
 
-	err := r.Client.Update(ctx, node)
+	err := r.Update(ctx, node)
 	if err != nil {
 		klog.Errorf("failed to update label in %s", node.Name)
 		return err
@@ -250,7 +250,7 @@ func (r *MachinesetReconciler) updateTaintsInNode(ctx context.Context, machine *
 	toAdd, toRemove := TaintSliceDiff(expectedTaints, node.Spec.Taints)
 	if len(toAdd) > 0 || len(toRemove) > 0 {
 		node.Spec.Taints = expectedTaints
-		if err := r.Client.Update(ctx, node); err != nil {
+		if err := r.Update(ctx, node); err != nil {
 			return fmt.Errorf("failed to update taints for node %s: %w", node.Name, err)
 		}
 	}
