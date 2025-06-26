@@ -114,7 +114,7 @@ var _ = Describe("Machine", func() {
 		Context("When there are no matching labels", func() {
 
 			It("should return false", func() {
-				machine.ObjectMeta.Labels = map[string]string{"foo": "bar"}
+				machine.Labels = map[string]string{"foo": "bar"}
 				machineSet.Spec.Selector.MatchLabels = map[string]string{"no": "bar"}
 				res := hasMatchingLabels(&machineSet, &machine)
 				Expect(res).To(Equal(false))
@@ -124,7 +124,7 @@ var _ = Describe("Machine", func() {
 		Context("When there are matching labels", func() {
 
 			It("should return true", func() {
-				machine.ObjectMeta.Labels = map[string]string{"foo": "bar"}
+				machine.Labels = map[string]string{"foo": "bar"}
 				machineSet.Spec.Selector.MatchLabels = map[string]string{"foo": "bar"}
 				res := hasMatchingLabels(&machineSet, &machine)
 				Expect(res).To(Equal(true))

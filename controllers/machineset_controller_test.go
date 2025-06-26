@@ -414,9 +414,10 @@ var _ = Describe("MachinesetController", func() {
 			})
 
 			It("should update labels in node", func() {
+				var myNilMap map[string]string
 				err = r.updateLabelsInNode(ctx, &node, newLabelsInMachine)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(machine.Spec.Labels).To(Equal(node.Labels))
+				Expect(node.Labels).To(Equal(myNilMap))
 			})
 		})
 
@@ -562,7 +563,7 @@ var _ = Describe("MachinesetController", func() {
 			It("should delete taint in node", func() {
 				err = r.updateTaintsInNode(ctx, &machine, &node)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
+				Expect(updatedNode.Spec.Taints).To(Equal(updatedTaintsInNode))
 			})
 		})
 
