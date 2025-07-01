@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // Integration is an integration testing toolset, providing utilities to get resources from a cluster
@@ -32,8 +33,8 @@ func NewIntegration() (*Integration, error) {
 	utilruntime.Must(admissionregistration.AddToScheme(scheme))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: ":9999",
+		Scheme:        scheme,
+		WebhookServer: webhook.NewServer(webhook.Options{Port: 9999}),
 	})
 	if err != nil {
 		return &Integration{}, err
