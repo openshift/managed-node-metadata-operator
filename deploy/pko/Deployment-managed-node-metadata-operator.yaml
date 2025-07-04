@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: managed-node-metadata-operator
+  namespace: openshift-managed-node-metadata-operator
+  annotations:
+    package-operator.run/phase: deploy
+    package-operator.run/collision-protection: IfNoController
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: managed-node-metadata-operator
+  template:
+    metadata:
+      labels:
+        name: managed-node-metadata-operator
+    spec:
+      serviceAccountName: managed-node-metadata-operator
+      securityContext:
+        runAsNonRoot: true
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/infra
+                operator: Exists
+            weight: 1
+      tolerations:
+      - operator: Exists
+        key: node-role.kubernetes.io/infra
+        effect: NoSchedule
+      containers:
+      - name: managed-node-metadata-operator
+        image: '{{ .config.image }}'
+        args:
+        - --leader-elect
+        command:
+        - /manager
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
