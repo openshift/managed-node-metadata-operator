@@ -50,7 +50,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 			ginkgo.Fail("Unexpected OCM_ENV - use 'stage' or 'int'")
 		}
 
-		ocmConn, err := ocm.New(ctx, os.Getenv("OCM_TOKEN"), ocmUrl)
+		ocmConn, err := ocm.New(ctx, "", os.Getenv("OCM_CLIENT_ID"), os.Getenv("OCM_CLIENT_SECRET"), ocmUrl)
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup ocm client")
 		ginkgo.DeferCleanup(ocmConn.Connection.Close)
 
@@ -80,7 +80,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		machinepool, err := machinepoolBuilder.Build()
 		Expect(err).Should(BeNil(), "machinepoolBuilder.Build failed")
 
-		err = wait.For(func() (bool, error) {
+		err = wait.For(func(ctx context.Context) (bool, error) {
 			_, err = ocmClusterClient.MachinePools().Add().Body(machinepool).SendContext(ctx)
 			Expect(err).Should(BeNil(), "failed to create machinepool")
 			_, err = ocmClusterClient.MachinePools().MachinePool(machinepoolName).Get().SendContext(ctx)
@@ -91,7 +91,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		// delete the pool at the end
 		ginkgo.DeferCleanup(ocmClusterClient.MachinePools().MachinePool(machinepoolName).Delete().SendContext)
 
-		err = wait.For(func() (bool, error) {
+		err = wait.For(func(ctx context.Context) (bool, error) {
 			lblSel := resources.WithLabelSelector(labels.FormatLabels(map[string]string{"hive.openshift.io/machine-pool": machinepoolName}))
 			var machineSetList machinev1beta1.MachineSetList
 			if err = k8s.WithNamespace(ns).List(ctx, &machineSetList, lblSel); err != nil {
@@ -131,8 +131,8 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		return false
 	}
 
-	nodesTo := func(ctx context.Context, items map[string]string, have func(corev1.Node, map[string]string) bool) func() (bool, error) {
-		return func() (bool, error) {
+	nodesTo := func(ctx context.Context, items map[string]string, have func(corev1.Node, map[string]string) bool) func(ctx context.Context) (bool, error) {
+		return func(ctx context.Context) (bool, error) {
 			lblSel := resources.WithLabelSelector(labels.FormatLabels(map[string]string{"machine.openshift.io/cluster-api-machineset": machineSetName}))
 			var machineList machinev1beta1.MachineList
 			if err := k8s.WithNamespace(ns).List(ctx, &machineList, lblSel); err != nil {
