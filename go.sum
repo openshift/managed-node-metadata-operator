@@ -211,8 +211,8 @@ github.com/openshift-online/ocm-sdk-go v0.1.469/go.mod h1:RjLocq1aHUZ4h7LxkAqZVC
 github.com/openshift/api v0.0.0-20220414050251-a83e6f8f1d50 h1:pg/cKeyO01QHvZNM8dvqVutf6shn+H1ZVPi83uyGil8=
 github.com/openshift/api v0.0.0-20220414050251-a83e6f8f1d50/go.mod h1:F/eU6jgr6Q2VhMu1mSpMmygxAELd7+BUxs3NHZ25jV4=
 github.com/openshift/build-machinery-go v0.0.0-20211213093930-7e33a7eb4ce3/go.mod h1:b1BuldmJlbA/xYtdZvKi+7j5YGB44qJUJDZ9zwiNCfE=
-github.com/openshift/osde2e-common v0.0.0-20250703192222-36c5869579b1 h1:hXEqS/qApJ61AAbrsgjwJxMpBATUS046HxH34EIzDQk=
-github.com/openshift/osde2e-common v0.0.0-20250703192222-36c5869579b1/go.mod h1:RSH57cGEQRIkKzoXdzqpsA3oHp4zIzGHD97TmsqUTOo=
+github.com/openshift/osde2e-common v0.0.0-20250711133948-ac734b5fa6c5 h1:oxxA0byjK4Tb3rfVuQpjh/tQkBLxikReP4EgBYj+vJM=
+github.com/openshift/osde2e-common v0.0.0-20250711133948-ac734b5fa6c5/go.mod h1:RSH57cGEQRIkKzoXdzqpsA3oHp4zIzGHD97TmsqUTOo=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
