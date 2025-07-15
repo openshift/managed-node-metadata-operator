@@ -31,11 +31,11 @@ objects:
           api.openshift.com/managed: "true"
       resourceApplyMode: Sync
       resources:
-        apiVersion: package-operator.run/v1alpha1
-        kind: ClusterPackage
-        metadata:
-          name: "${REPO_NAME}"
-          annotations:
-            package-operator.run/collision-protection: IfNoController
-        spec:
-          image: ${PKO_IMAGE}:${IMAGE_TAG}
+        - apiVersion: package-operator.run/v1alpha1
+          kind: ClusterPackage
+          metadata:
+            name: "${REPO_NAME}"
+            annotations:
+              package-operator.run/collision-protection: IfNoController
+          spec:
+            image: ${PKO_IMAGE}:${IMAGE_TAG}
