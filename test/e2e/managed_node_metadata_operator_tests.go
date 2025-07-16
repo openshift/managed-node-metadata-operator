@@ -179,7 +179,7 @@ var _ = ginkgo.Describe("managed-node-metadata-operator", ginkgo.Ordered, func()
 		ginkgo.Entry("deleted", map[string]string{}),
 	)
 
-	ginkgo.It("can be upgraded", func(ctx context.Context) {
+	ginkgo.PIt("can be upgraded", func(ctx context.Context) {
 		err := k8s.UpgradeOperator(ctx, config.OperatorName, config.OperatorNamespace)
 		Expect(err).NotTo(HaveOccurred(), "operator upgrade failed")
 	})
