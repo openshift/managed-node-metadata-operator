@@ -10,7 +10,7 @@ require (
 	github.com/onsi/gomega v1.37.0
 	github.com/openshift-online/ocm-sdk-go v0.1.469
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openshift/osde2e-common v0.0.0-20250703192222-36c5869579b1
+	github.com/openshift/osde2e-common v0.0.0-20250711133948-ac734b5fa6c5
 	github.com/prometheus/client_golang v1.22.0
 	k8s.io/api v0.31.3
 	k8s.io/apimachinery v0.31.3
