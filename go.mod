@@ -2,7 +2,7 @@ module github.com/openshift/managed-node-metadata-operator
 
 go 1.23.6
 
-toolchain go1.24.3
+toolchain go1.24.5
 
 require (
 	github.com/golang/mock v1.6.0
