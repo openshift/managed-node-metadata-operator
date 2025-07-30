@@ -1,3 +1,13 @@
 FROM scratch
 
 COPY * /package/
+
+LABEL \
+        io.k8s.description="This is a component of managed-node-metadata-operator for pko." \
+        com.redhat.component="managed-node-metadata-operator-pko" \
+        maintainer="" \
+        name="openshift/managed-node-metadata-operator" \
+        License="NA" \
+        io.k8s.display-name="Managed Node Metadata Operator" \
+        vendor="Red Hat" \
+        io.openshift.tags="openshift,managed-node-metadata-operator,MNMO"
