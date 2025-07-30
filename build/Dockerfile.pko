@@ -4,10 +4,12 @@ COPY * /package/
 
 LABEL \
         io.k8s.description="This is a component of managed-node-metadata-operator for pko." \
-        com.redhat.component="managed-node-metadata-operator-pko" \
-        maintainer="" \
-        name="openshift/managed-node-metadata-operator" \
-        License="NA" \
-        io.k8s.display-name="Managed Node Metadata Operator" \
+        description="This is a component of managed-node-metadata-operator for pko." \
+	release="1" \
+	url="https://github.com/openshift/managed-node-metadata-operator.git" \
+	com.redhat.component="managed-node-metadata-operator-pko" \
+        distribution-scope= "public" \
+	name="openshift/managed-node-metadata-operator" \
+	io.k8s.display-name="Managed Node Metadata Operator" \
         vendor="Red Hat" \
         io.openshift.tags="openshift,managed-node-metadata-operator,MNMO"
