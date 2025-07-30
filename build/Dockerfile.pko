@@ -11,5 +11,6 @@ LABEL \
         distribution-scope="public" \
 	name="openshift/managed-node-metadata-operator" \
 	io.k8s.display-name="Managed Node Metadata Operator" \
-        vendor="Red Hat" \
+        vendor="Red Hat, Inc." \
+	version="1.0" \
         io.openshift.tags="openshift,managed-node-metadata-operator,MNMO"
