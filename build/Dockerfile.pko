@@ -8,7 +8,7 @@ LABEL \
 	release="1" \
 	url="https://github.com/openshift/managed-node-metadata-operator.git" \
 	com.redhat.component="managed-node-metadata-operator-pko" \
-        distribution-scope= "public" \
+        distribution-scope="public" \
 	name="openshift/managed-node-metadata-operator" \
 	io.k8s.display-name="Managed Node Metadata Operator" \
         vendor="Red Hat" \
