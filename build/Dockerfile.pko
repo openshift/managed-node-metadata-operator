@@ -7,7 +7,7 @@ LABEL \
         io.k8s.description="This is a component of managed-node-metadata-operator for pko." \
         description="This is a component of managed-node-metadata-operator for pko." \
 	summary="This is a component of managed-node-metadata-operator for pko." \
-	maintainer="Brady Pratt <bpratt@redhat.com>"
+	maintainer="Brady Pratt <bpratt@redhat.com>" \
 	release="1" \
 	url="https://github.com/openshift/managed-node-metadata-operator.git" \
 	com.redhat.component="managed-node-metadata-operator-pko" \
