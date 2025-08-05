@@ -1,3 +1,19 @@
-FROM scratch
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10-1753978370
 
 COPY * /package/
+USER nonroot:nonroot
+
+LABEL \
+        io.k8s.description="This is a component of managed-node-metadata-operator for pko." \
+        description="This is a component of managed-node-metadata-operator for pko." \
+	summary="This is a component of managed-node-metadata-operator for pko." \
+	maintainer="Red Hat" \
+	release="1" \
+	url="https://github.com/openshift/managed-node-metadata-operator.git" \
+	com.redhat.component="managed-node-metadata-operator-pko" \
+        distribution-scope="public" \
+	name="openshift/managed-node-metadata-operator" \
+	io.k8s.display-name="Managed Node Metadata Operator" \
+        vendor="Red Hat, Inc." \
+	version="1.0" \
+        io.openshift.tags="openshift,managed-node-metadata-operator,MNMO"
