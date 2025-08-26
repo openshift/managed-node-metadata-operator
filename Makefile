@@ -1,3 +1,4 @@
+export KONFLUX_BUILDS=true
 FIPS_ENABLED=true
 TESTTARGETS=$(shell ${GOENV} go list -e ./... | egrep -v "/(vendor)/" | grep -v /int)
 PKO_IMAGE=$(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME)-pko:$(CURRENT_COMMIT)
