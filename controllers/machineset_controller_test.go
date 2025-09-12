@@ -13,8 +13,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -610,6 +612,247 @@ var _ = Describe("MachinesetController", func() {
 				err = r.updateTaintsInNode(ctx, &machine, &node)
 				Expect(err).To(HaveOccurred())
 				Expect(node.Spec.Taints).To(Equal(updatedNode.Spec.Taints))
+			})
+		})
+	})
+
+	Describe("Reconcile function", func() {
+		var (
+			req ctrl.Request
+		)
+
+		BeforeEach(func() {
+			req = ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-machineset",
+					Namespace: "test",
+				},
+			}
+		})
+
+		Context("When MachineSet is not found", func() {
+			BeforeEach(func() {
+				localObjects = []client.Object{}
+				mockObjects = &mocks{
+					fakeKubeClient: fake.NewClientBuilder().WithScheme(s).WithObjects(localObjects...).Build(),
+					mockCtrl:       gomock.NewController(GinkgoT()),
+				}
+				r = &MachinesetReconciler{
+					mockObjects.fakeKubeClient,
+					scheme.Scheme,
+					record.NewFakeRecorder(32),
+				}
+			})
+
+			AfterEach(func() {
+				mockObjects.mockCtrl.Finish()
+			})
+
+			It("should return without error when MachineSet is not found", func() {
+				result, err := r.Reconcile(ctx, req)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result).To(Equal(reconcile.Result{}))
+			})
+		})
+
+		Context("When MachineSet exists but has no machines", func() {
+			BeforeEach(func() {
+				machineSet = machinev1beta1.MachineSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-machineset",
+						Namespace: "test",
+					},
+					Spec: machinev1beta1.MachineSetSpec{
+						Selector: metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"owner": "test-machineset",
+							},
+						},
+						Template: machinev1beta1.MachineTemplateSpec{
+							ObjectMeta: machinev1beta1.ObjectMeta{
+								Labels: map[string]string{
+									"owner": "test-machineset",
+								},
+							},
+							Spec: machinev1beta1.MachineSpec{
+								ObjectMeta: machinev1beta1.ObjectMeta{
+									Labels: map[string]string{"test": "label"},
+								},
+							},
+						},
+					},
+				}
+				localObjects = []client.Object{&machineSet}
+				mockObjects = &mocks{
+					fakeKubeClient: fake.NewClientBuilder().WithScheme(s).WithObjects(localObjects...).Build(),
+					mockCtrl:       gomock.NewController(GinkgoT()),
+				}
+				r = &MachinesetReconciler{
+					mockObjects.fakeKubeClient,
+					scheme.Scheme,
+					record.NewFakeRecorder(32),
+				}
+			})
+
+			AfterEach(func() {
+				mockObjects.mockCtrl.Finish()
+			})
+
+			It("should return without error when no machines are found", func() {
+				result, err := r.Reconcile(ctx, req)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result).To(Equal(reconcile.Result{}))
+			})
+		})
+	})
+
+	Describe("Taint utility functions", func() {
+		Describe("CheckDuplicateTaints", func() {
+			Context("When taints are unique", func() {
+				It("should return all taints without error", func() {
+					taints := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key2", Value: "value2", Effect: corev1.TaintEffectPreferNoSchedule},
+					}
+
+					result, err := CheckDuplicateTaints(taints)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result).To(Equal(taints))
+				})
+			})
+
+			Context("When taints have duplicates", func() {
+				It("should return unique taints and error", func() {
+					taints := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key2", Value: "value2", Effect: corev1.TaintEffectPreferNoSchedule},
+					}
+
+					result, err := CheckDuplicateTaints(taints)
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(BeAssignableToTypeOf(DuplicateTaintError{}))
+					Expect(len(result)).To(Equal(2))
+					Expect(result[0]).To(Equal(taints[0]))
+					Expect(result[1]).To(Equal(taints[2]))
+				})
+			})
+
+			Context("When taints slice is empty", func() {
+				It("should return empty slice without error", func() {
+					taints := []corev1.Taint{}
+
+					result, err := CheckDuplicateTaints(taints)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result).To(BeEmpty())
+				})
+			})
+		})
+
+		Describe("TaintExists", func() {
+			Context("When taint exists in slice", func() {
+				It("should return true", func() {
+					taints := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key2", Value: "value2", Effect: corev1.TaintEffectPreferNoSchedule},
+					}
+					taintToFind := &corev1.Taint{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule}
+
+					result := TaintExists(taints, taintToFind)
+					Expect(result).To(BeTrue())
+				})
+			})
+
+			Context("When taint does not exist in slice", func() {
+				It("should return false", func() {
+					taints := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+					}
+					taintToFind := &corev1.Taint{Key: "key2", Value: "value2", Effect: corev1.TaintEffectNoSchedule}
+
+					result := TaintExists(taints, taintToFind)
+					Expect(result).To(BeFalse())
+				})
+			})
+
+			Context("When taint slice is empty", func() {
+				It("should return false", func() {
+					taints := []corev1.Taint{}
+					taintToFind := &corev1.Taint{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule}
+
+					result := TaintExists(taints, taintToFind)
+					Expect(result).To(BeFalse())
+				})
+			})
+		})
+
+		Describe("TaintSliceDiff", func() {
+			Context("When expected and actual are identical", func() {
+				It("should return empty slices", func() {
+					expected := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+					}
+					actual := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+					}
+
+					toAdd, toRemove := TaintSliceDiff(expected, actual)
+					Expect(toAdd).To(BeEmpty())
+					Expect(toRemove).To(BeEmpty())
+				})
+			})
+
+			Context("When expected has additional taints", func() {
+				It("should return taints to add", func() {
+					expected := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key2", Value: "value2", Effect: corev1.TaintEffectNoSchedule},
+					}
+					actual := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+					}
+
+					toAdd, toRemove := TaintSliceDiff(expected, actual)
+					Expect(len(toAdd)).To(Equal(1))
+					Expect(toAdd[0]).To(Equal(&expected[1]))
+					Expect(toRemove).To(BeEmpty())
+				})
+			})
+
+			Context("When actual has additional taints", func() {
+				It("should return taints to remove", func() {
+					expected := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+					}
+					actual := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key2", Value: "value2", Effect: corev1.TaintEffectNoSchedule},
+					}
+
+					toAdd, toRemove := TaintSliceDiff(expected, actual)
+					Expect(toAdd).To(BeEmpty())
+					Expect(len(toRemove)).To(Equal(1))
+					Expect(toRemove[0]).To(Equal(&actual[1]))
+				})
+			})
+
+			Context("When both have different taints", func() {
+				It("should return both taints to add and remove", func() {
+					expected := []corev1.Taint{
+						{Key: "key1", Value: "value1", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key3", Value: "value3", Effect: corev1.TaintEffectNoSchedule},
+					}
+					actual := []corev1.Taint{
+						{Key: "key2", Value: "value2", Effect: corev1.TaintEffectNoSchedule},
+						{Key: "key3", Value: "value3", Effect: corev1.TaintEffectNoSchedule},
+					}
+
+					toAdd, toRemove := TaintSliceDiff(expected, actual)
+					Expect(len(toAdd)).To(Equal(1))
+					Expect(toAdd[0]).To(Equal(&expected[0]))
+					Expect(len(toRemove)).To(Equal(1))
+					Expect(toRemove[0]).To(Equal(&actual[0]))
+				})
 			})
 		})
 	})
