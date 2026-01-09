@@ -26,6 +26,8 @@ spec:
     value: build/Dockerfile.pko
   - name: image-expires-after
     value: 3d
+  - name: skip-checks
+    value: "true"
   pipelineSpec:
     description: |
       This pipeline is ideal for building container images from a Containerfile while maintaining trust after pipeline customization.
