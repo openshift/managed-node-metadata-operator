@@ -24,8 +24,6 @@ spec:
     value: quay.io/redhat-user-workloads/managed-node-metadata-operator-tenant/openshift/managed-node-metadata-operator-pko:{{revision}}
   - name: dockerfile
     value: build/Dockerfile.pko
-  - name: image-expires-after
-    value: 3d
   - name: path-context
     value: deploy_pko
   pipelineSpec:
