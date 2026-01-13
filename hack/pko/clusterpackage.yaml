@@ -5,6 +5,8 @@ parameters:
     required: false
   - name: PKO_IMAGE
     required: true
+  - name: OPERATOR_IMAGE
+    required: true
   - name: IMAGE_TAG
     required: true
   - name: IMAGE_DIGEST
@@ -39,3 +41,5 @@ objects:
               package-operator.run/collision-protection: IfNoController
           spec:
             image: ${PKO_IMAGE}:${IMAGE_TAG}
+            config:
+              image: ${OPERATOR_IMAGE}:${IMAGE_TAG}
