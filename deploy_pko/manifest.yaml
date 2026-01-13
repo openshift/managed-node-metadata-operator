@@ -1,7 +1,7 @@
 apiVersion: manifests.package-operator.run/v1alpha1
 kind: PackageManifest
 metadata:
-  name: managed-node-metadata-operator
+  name: openshift-managed-node-metadata-operator
   annotations:
     name: annotation
 spec:
