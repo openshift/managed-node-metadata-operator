@@ -29,6 +29,8 @@ spec:
     value: 3d
   - name: path-context
     value: deploy_pko
+  - name: skip-preflight-cert-check
+    value: true
   taskRunTemplate:
     serviceAccountName: build-pipeline-managed-node-metadata-operator-pko
   workspaces:
