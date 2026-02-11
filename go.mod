@@ -3,13 +3,13 @@ module github.com/openshift/managed-node-metadata-operator
 go 1.24.0
 
 require (
-	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	github.com/openshift-online/ocm-sdk-go v0.1.469
 	github.com/openshift/api v0.0.0-20250929151534-41627d81e9c1 // release-4.20
 	github.com/openshift/osde2e-common v0.0.0-20250703192222-36c5869579b1
 	github.com/prometheus/client_golang v1.23.2
+	go.uber.org/mock v0.6.0
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.2
