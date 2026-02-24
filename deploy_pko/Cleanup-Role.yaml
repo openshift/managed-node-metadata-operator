@@ -12,6 +12,7 @@ rules:
     resources:
       - "clusterserviceversions"
       - "subscriptions"
+      - "catalogsource"
     verbs:
       - list
       - get
