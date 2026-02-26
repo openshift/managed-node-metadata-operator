@@ -12,7 +12,16 @@ rules:
     resources:
       - "clusterserviceversions"
       - "subscriptions"
-      - "catalogsource"
+      - "catalogsources"
+    verbs:
+      - list
+      - get
+      - watch
+      - delete
+  - apiGroups:
+      - "operators.coreos.com/v1alpha1"
+    resources:
+      - "catalogsources"
     verbs:
       - list
       - get

@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "olm-cleanup"
+  name: "olm-cleanup-2"
   namespace: "openshift-managed-node-metadata-operator"
   annotations:
     package-operator.run/phase: cleanup-deploy
