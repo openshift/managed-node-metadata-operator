@@ -27,7 +27,8 @@ spec:
             - |
               #!/bin/sh
               set -euxo pipefail
-              oc -n openshift-managed-node-metadata-operator delete csv -l "operators.coreos.com/managed-node-metadata-operator.openshift-managed-node-metadata"
+              oc -n openshift-managed-node-metadata-operator delete csv -l "operators.coreos.com/managed-node-metadata-operator.openshift-managed-node-metadata" || true
+              oc -n openshift-managed-node-metadata-operator delete catalogsource managed-node-metadata-operator-registry || true
           resources:
             requests:
               cpu: 100m
