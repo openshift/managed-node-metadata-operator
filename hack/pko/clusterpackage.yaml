@@ -3,9 +3,9 @@ kind: Template
 parameters:
   - name: CHANNEL
     required: false
-  - name: PKO_IMAGE
-    required: true
   - name: OPERATOR_IMAGE
+    required: true
+  - name: PKO_IMAGE
     required: true
   - name: IMAGE_TAG
     required: true
@@ -29,8 +29,8 @@ objects:
       name: managed-node-metadata-operator-stage
     spec:
       clusterDeploymentSelector:
-        matchLabels:
-          api.openshift.com/managed: "true"
+      matchLabels:
+        api.openshift.com/managed: 'true'
       resourceApplyMode: Sync
       resources:
         - apiVersion: v1
