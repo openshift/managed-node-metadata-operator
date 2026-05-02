@@ -36,6 +36,7 @@ spec:
           command:
             - /manager
           imagePullPolicy: Always
+          terminationMessagePolicy: FallbackToLogsOnError
           resources:
             limits:
               cpu: 500m
