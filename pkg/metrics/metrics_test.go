@@ -135,8 +135,7 @@ mnmo_node_reconciliation_failure{node="%s"} 1
 `)
 
 				for i := 0; i < numGoroutines; i++ {
-					expectedMetric.WriteString(fmt.Sprintf(`mnmo_node_reconciliation_failure{node="node-%d"} %d
-`, i, incrementsPerGoroutine))
+					fmt.Fprintf(&expectedMetric, "mnmo_node_reconciliation_failure{node=\"node-%d\"} %d\n", i, incrementsPerGoroutine)
 				}
 
 				err := testutil.CollectAndCompare(NodeReconciliationFailure, strings.NewReader(expectedMetric.String()))
