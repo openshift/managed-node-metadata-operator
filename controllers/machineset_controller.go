@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -86,7 +87,7 @@ func (r *MachinesetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet *machinev1beta1.MachineSet) (reconcile.Result, error) {
 	// Get machines for machineset
-	machines, err := m.GetMachinesForMachineSet(r.Client, machineSet)
+	machines, err := m.GetMachinesForMachineSet(ctx, r.Client, machineSet)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -95,13 +96,13 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 		if machine.Status.NodeRef == nil || machine.Status.NodeRef.Name == "" {
 			continue
 		}
-		node, err := m.GetNodeForMachine(r.Client, machine)
+		node, err := m.GetNodeForMachine(ctx, r.Client, machine)
 		if err != nil {
 			klog.Errorf("failed to fetch node for machine %s", machine.Name)
 			metrics.IncreaseNodeReconciliationFailure(machine.Name)
 			return reconcile.Result{}, err
 		}
-		expectedLabels := r.getExpectedLabels(ctx, machineSet, machine, node)
+		expectedLabels := r.getExpectedLabels(machineSet, machine, node)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -127,7 +128,8 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 		err = r.updateTaintsInNode(ctx, machine, node)
 		if err != nil {
 			metrics.IncreaseNodeReconciliationFailure(node.Name)
-			if derr, ok := err.(DuplicateTaintError); ok {
+			var derr DuplicateTaintError
+			if errors.As(err, &derr) {
 				log.Log.Info("found duplicate taint on machine spec", "error", derr.Message)
 				return reconcile.Result{Requeue: false}, nil
 			}
@@ -137,7 +139,7 @@ func (r *MachinesetReconciler) ProcessMachineSet(ctx context.Context, machineSet
 	return reconcile.Result{}, nil
 }
 
-func (r *MachinesetReconciler) getExpectedLabels(ctx context.Context, machineSet *machinev1beta1.MachineSet, machine *machinev1beta1.Machine, node *corev1.Node) map[string]string {
+func (r *MachinesetReconciler) getExpectedLabels(machineSet *machinev1beta1.MachineSet, machine *machinev1beta1.Machine, node *corev1.Node) map[string]string {
 	result := machineSet.Spec.Template.Spec.Labels
 
 	currentAnnotationValue := node.Annotations["managed.openshift.com/customlabels"]

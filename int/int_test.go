@@ -50,11 +50,11 @@ func setMachineSetTaint(machineset machinev1.MachineSet, key string, value strin
 }
 
 func setNodeLabel(machineset machinev1.MachineSet, label string, value string) {
-	machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+	machines, err := m.GetMachinesForMachineSet(context.Background(), i.Client, &machineset)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(len(machines)).To(BeNumerically(">", 0))
 	for _, machine := range machines {
-		node, err := m.GetNodeForMachine(i.Client, machine)
+		node, err := m.GetNodeForMachine(context.Background(), i.Client, machine)
 		Expect(err).ToNot(HaveOccurred())
 		node.Labels[label] = value
 		err = i.Client.Update(context.TODO(), node)
@@ -106,7 +106,7 @@ func waitForNodeLabel(machineset machinev1.MachineSet, label string, value strin
 
 	for {
 		time.Sleep(1 * time.Second)
-		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+		machines, err := m.GetMachinesForMachineSet(context.Background(), i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(len(machines)).To(BeNumerically(">", 0))
 		allMachinesOk := true
@@ -122,7 +122,7 @@ func waitForNodeLabel(machineset machinev1.MachineSet, label string, value strin
 
 			}
 
-			node, err := m.GetNodeForMachine(i.Client, machine)
+			node, err := m.GetNodeForMachine(context.Background(), i.Client, machine)
 			Expect(err).NotTo(HaveOccurred())
 			nodeLabelValue, ok := node.Labels[label]
 			if !ok {
@@ -150,7 +150,7 @@ func waitForNodeTaint(machineset machinev1.MachineSet, key string, value string,
 
 	for {
 		time.Sleep(1 * time.Second)
-		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+		machines, err := m.GetMachinesForMachineSet(context.Background(), i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
 		allMachinesOk := true
 		for _, machine := range machines {
@@ -170,7 +170,7 @@ func waitForNodeTaint(machineset machinev1.MachineSet, key string, value string,
 				}
 			}
 
-			node, err := m.GetNodeForMachine(i.Client, machine)
+			node, err := m.GetNodeForMachine(context.Background(), i.Client, machine)
 			Expect(err).NotTo(HaveOccurred())
 			nodeTaintKeyExist := false
 			for _, taint := range node.Spec.Taints {
@@ -204,7 +204,7 @@ func waitForNodeLabelAbsence(machineset machinev1.MachineSet, label string) {
 
 	for {
 		time.Sleep(1 * time.Second)
-		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+		machines, err := m.GetMachinesForMachineSet(context.Background(), i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(len(machines)).To(BeNumerically(">", 0))
 		allMachinesOk := true
@@ -216,7 +216,7 @@ func waitForNodeLabelAbsence(machineset machinev1.MachineSet, label string) {
 				continue
 			}
 
-			node, err := m.GetNodeForMachine(i.Client, machine)
+			node, err := m.GetNodeForMachine(context.Background(), i.Client, machine)
 			Expect(err).NotTo(HaveOccurred())
 			_, ok = node.Labels[label]
 			if ok {
@@ -243,7 +243,7 @@ func waitForNodeTaintAbsence(machineset machinev1.MachineSet, key string) {
 
 	for {
 		time.Sleep(1 * time.Second)
-		machines, err := m.GetMachinesForMachineSet(i.Client, &machineset)
+		machines, err := m.GetMachinesForMachineSet(context.Background(), i.Client, &machineset)
 		Expect(err).ToNot(HaveOccurred())
 		allMachinesOk := true
 		for _, machine := range machines {
@@ -255,7 +255,7 @@ func waitForNodeTaintAbsence(machineset machinev1.MachineSet, key string) {
 				}
 			}
 
-			node, err := m.GetNodeForMachine(i.Client, machine)
+			node, err := m.GetNodeForMachine(context.Background(), i.Client, machine)
 			Expect(err).NotTo(HaveOccurred())
 			for _, taint := range node.Spec.Taints {
 				if taint.Key == key {

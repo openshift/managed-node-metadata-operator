@@ -13,11 +13,11 @@ import (
 )
 
 // GetMachinesForMachineSet returns all machines matching the MachineSet
-func GetMachinesForMachineSet(c client.Client, machineSet *machinev1.MachineSet) ([]*machinev1.Machine, error) {
+func GetMachinesForMachineSet(ctx context.Context, c client.Client, machineSet *machinev1.MachineSet) ([]*machinev1.Machine, error) {
 
 	allMachines := &machinev1.MachineList{}
 
-	err := c.List(context.Background(), allMachines, client.InNamespace(machineSet.Namespace))
+	err := c.List(ctx, allMachines, client.InNamespace(machineSet.Namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +82,9 @@ func hasMatchingLabels(machineSet *machinev1.MachineSet, machine *machinev1.Mach
 }
 
 // GetNodeForMachine returns the node that is referenced in the machine resource
-func GetNodeForMachine(c client.Client, m *machinev1.Machine) (*corev1.Node, error) {
+func GetNodeForMachine(ctx context.Context, c client.Client, m *machinev1.Machine) (*corev1.Node, error) {
 	node := &corev1.Node{}
-	err := c.Get(context.TODO(), types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
+	err := c.Get(ctx, types.NamespacedName{Name: m.Status.NodeRef.Name}, node)
 	if err != nil {
 		return &corev1.Node{}, err
 	}

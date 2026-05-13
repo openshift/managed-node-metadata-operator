@@ -174,7 +174,7 @@ var _ = Describe("Machine", func() {
 
 		Context("When no machines exist", func() {
 			It("should return empty list", func() {
-				machines, err := GetMachinesForMachineSet(fakeClient, machineSet)
+				machines, err := GetMachinesForMachineSet(context.Background(), fakeClient, machineSet)
 				Expect(err).To(BeNil())
 				Expect(machines).To(HaveLen(0))
 			})
@@ -207,7 +207,7 @@ var _ = Describe("Machine", func() {
 			})
 
 			It("should return matching machines", func() {
-				machines, err := GetMachinesForMachineSet(fakeClient, machineSet)
+				machines, err := GetMachinesForMachineSet(context.Background(), fakeClient, machineSet)
 				Expect(err).To(BeNil())
 				Expect(machines).To(HaveLen(2))
 			})
@@ -229,7 +229,7 @@ var _ = Describe("Machine", func() {
 			})
 
 			It("should return empty list", func() {
-				machines, err := GetMachinesForMachineSet(fakeClient, machineSet)
+				machines, err := GetMachinesForMachineSet(context.Background(), fakeClient, machineSet)
 				Expect(err).To(BeNil())
 				Expect(machines).To(HaveLen(0))
 			})
@@ -251,7 +251,7 @@ var _ = Describe("Machine", func() {
 			})
 
 			It("should not return machines from different namespace", func() {
-				machines, err := GetMachinesForMachineSet(fakeClient, machineSet)
+				machines, err := GetMachinesForMachineSet(context.Background(), fakeClient, machineSet)
 				Expect(err).To(BeNil())
 				Expect(machines).To(HaveLen(0))
 			})
@@ -265,7 +265,7 @@ var _ = Describe("Machine", func() {
 			})
 
 			It("should return error", func() {
-				machines, err := GetMachinesForMachineSet(fakeClient, machineSet)
+				machines, err := GetMachinesForMachineSet(context.Background(), fakeClient, machineSet)
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(ContainSubstring("failed validation on MachineSet"))
 				Expect(machines).To(BeNil())
@@ -285,7 +285,7 @@ var _ = Describe("Machine", func() {
 			})
 
 			It("should return error", func() {
-				machines, err := GetMachinesForMachineSet(fakeClient, machineSet)
+				machines, err := GetMachinesForMachineSet(context.Background(), fakeClient, machineSet)
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(ContainSubstring("failed to parse MachineSet"))
 				Expect(machines).To(BeNil())
@@ -331,7 +331,7 @@ var _ = Describe("Machine", func() {
 			})
 
 			It("should return the node", func() {
-				resultNode, err := GetNodeForMachine(fakeClient, machine)
+				resultNode, err := GetNodeForMachine(context.Background(), fakeClient, machine)
 				Expect(err).To(BeNil())
 				Expect(resultNode.Name).To(Equal("test-node"))
 			})
@@ -339,7 +339,7 @@ var _ = Describe("Machine", func() {
 
 		Context("When node doesn't exist", func() {
 			It("should return error", func() {
-				resultNode, err := GetNodeForMachine(fakeClient, machine)
+				resultNode, err := GetNodeForMachine(context.Background(), fakeClient, machine)
 				Expect(err).ToNot(BeNil())
 				Expect(resultNode).ToNot(BeNil())
 			})
@@ -353,7 +353,7 @@ var _ = Describe("Machine", func() {
 			})
 
 			It("should return error", func() {
-				resultNode, err := GetNodeForMachine(fakeClient, machine)
+				resultNode, err := GetNodeForMachine(context.Background(), fakeClient, machine)
 				Expect(err).ToNot(BeNil())
 				Expect(resultNode).ToNot(BeNil())
 			})

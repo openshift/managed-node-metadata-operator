@@ -187,7 +187,7 @@ var _ = Describe("MachinesetController", func() {
 			It("should not update the label", func() {
 				result, err := r.ProcessMachineSet(context.TODO(), &machineSet)
 				Expect(err).NotTo(HaveOccurred())
-				newNode, _ := m.GetNodeForMachine(mockObjects.fakeKubeClient, &machine)
+				newNode, _ := m.GetNodeForMachine(context.Background(), mockObjects.fakeKubeClient, &machine)
 				Expect(result).To(Equal(reconcile.Result{}))
 				Expect(newNode.Labels).To(Equal(existingLabelsInNode))
 				Expect(machine.Spec.Labels).To(Equal(existingLabelsInMachine))
@@ -211,7 +211,7 @@ var _ = Describe("MachinesetController", func() {
 				It("updates the label", func() {
 					result, err := r.ProcessMachineSet(context.TODO(), &machineSet)
 					Expect(err).NotTo(HaveOccurred())
-					newNode, _ := m.GetNodeForMachine(mockObjects.fakeKubeClient, &machine)
+					newNode, _ := m.GetNodeForMachine(context.Background(), mockObjects.fakeKubeClient, &machine)
 					Expect(result).To(Equal(reconcile.Result{}))
 					Expect(newNode.Labels).To(Equal(newLabelsInMachineSet))
 				})
@@ -588,12 +588,12 @@ var _ = Describe("MachinesetController", func() {
 		Context("When a duplicate taint is added", func() {
 			BeforeEach(func() {
 				newTaintsInMachine = []corev1.Taint{
-					corev1.Taint{
+					{
 						Key:    "test",
 						Value:  "test",
 						Effect: "NoSchedule",
 					},
-					corev1.Taint{
+					{
 						Key:    "test",
 						Value:  "test",
 						Effect: "NoSchedule",
@@ -601,7 +601,7 @@ var _ = Describe("MachinesetController", func() {
 				}
 				existingTaintsInNode = []corev1.Taint{}
 				updatedTaintsInNode = []corev1.Taint{
-					corev1.Taint{
+					{
 						Key:    "test",
 						Value:  "test",
 						Effect: "NoSchedule",
