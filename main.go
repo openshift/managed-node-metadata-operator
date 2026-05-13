@@ -107,6 +107,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	setupLog.Info("========= This is a PR build test ==============")
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
