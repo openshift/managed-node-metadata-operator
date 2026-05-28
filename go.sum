@@ -147,8 +147,8 @@ github.com/openshift-online/ocm-api-model/model v0.0.456 h1:0/WnVL+hnHMJOPDi2pKF
 github.com/openshift-online/ocm-api-model/model v0.0.456/go.mod h1:PQIoq6P8Vlb7goOdRMLK8nJY+B7HH0RTqYAa4kyidTE=
 github.com/openshift-online/ocm-sdk-go v0.1.501 h1:7hSfgAb8uPXerMawv1OU50GCX2QQrYnaxchLQdKLW90=
 github.com/openshift-online/ocm-sdk-go v0.1.501/go.mod h1:TfPLUn7T9KUoFS7UOoifHMSQ47owhzkkSHmRhK9Swbo=
-github.com/openshift/api v0.0.0-20260521125114-09730f85d883 h1:So9yxVJRY+F1aVBjcDw6N3M4h30wyH/GpkazK8xT4TI=
-github.com/openshift/api v0.0.0-20260521125114-09730f85d883/go.mod h1:pyVjK0nZ4sRs4fuQVQ4rubsJdahI1PB94LnQ8sGdvxo=
+github.com/openshift/api v0.0.0-20260527180537-d6ce07951593 h1:rkyDKi6/XSFd/jRtwoYVUyojfRIB6cuAuhDyNtz4TiI=
+github.com/openshift/api v0.0.0-20260527180537-d6ce07951593/go.mod h1:pyVjK0nZ4sRs4fuQVQ4rubsJdahI1PB94LnQ8sGdvxo=
 github.com/openshift/osde2e-common v0.0.0-20260514215146-b07512784467 h1:VJt5ls1RUhLTa7XYQRyM7coC0ANyp2nzcoSyUXVxl0c=
 github.com/openshift/osde2e-common v0.0.0-20260514215146-b07512784467/go.mod h1:CL/37fVHqLop8nekQnGKguyHnBn+6bPSSXhLOQReO/Q=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
