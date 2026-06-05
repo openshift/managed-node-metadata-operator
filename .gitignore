@@ -30,3 +30,4 @@ saasfile.yaml
 *.swo
 *~
 .vscode
+.work/
