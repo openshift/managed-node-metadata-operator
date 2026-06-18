@@ -3,7 +3,6 @@ module github.com/openshift/managed-node-metadata-operator
 go 1.26.0
 
 require (
-	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo/v2 v2.31.0
 	github.com/onsi/gomega v1.42.0
 	github.com/openshift-online/ocm-sdk-go v0.1.503
@@ -17,6 +16,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/e2e-framework v0.7.0
 )
+
+require go.uber.org/mock v0.6.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
