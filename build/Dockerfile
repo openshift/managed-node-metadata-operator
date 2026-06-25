@@ -1,4 +1,4 @@
-FROM quay.io/redhat-services-prod/openshift/boilerplate:image-v8.3.6 AS builder
+FROM quay.io/redhat-services-prod/openshift/boilerplate:image-v8.4.0 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -16,11 +16,9 @@ COPY pkg/ pkg/
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=mod -a -o manager main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1780378819
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1781496742
 WORKDIR /
 COPY --from=builder /workspace/manager .
-USER nonroot:nonroot
+USER 65534:65534
 
 ENTRYPOINT ["/manager"]
