@@ -1,4 +1,4 @@
-FROM quay.io/redhat-services-prod/openshift/boilerplate:image-v8.3.6 AS builder
+FROM quay.io/redhat-services-prod/openshift/boilerplate:image-v8.4.1 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
