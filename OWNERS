@@ -3,6 +3,7 @@ approvers:
 - bergmannf
 - tkong-redhat
 - rbhilare
+- srep-functional-team-hulk
 - rosa-staff-engineers
 reviewers:
 - iamkirkbater
