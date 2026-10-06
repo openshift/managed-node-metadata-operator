@@ -1,8 +1,9 @@
 module github.com/openshift/managed-node-metadata-operator
 
-go 1.26.6
+go 1.27
 
 require (
+	github.com/go-logr/logr v1.4.3
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1
@@ -30,7 +31,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.24.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.6 // indirect
@@ -97,6 +97,6 @@ require (
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
+	sigs.k8s.io/structured-merge-diff/v6 v6.4.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
