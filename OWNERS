@@ -5,8 +5,10 @@ approvers:
 - rbhilare
 - srep-functional-team-hulk
 - rosa-staff-engineers
+- rosa-hcp-platform-fleet-team
 reviewers:
 - iamkirkbater
 - bergmannf
 - srep-functional-team-hulk
+- rosa-hcp-platform-fleet-team
 maintainers:
