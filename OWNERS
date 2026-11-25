@@ -5,20 +5,10 @@ approvers:
 - rbhilare
 - srep-functional-team-hulk
 - rosa-staff-engineers
-- anfranci14
-- andrebeltrami
-- ChunxiAlexLuo
-- nelsonjean
-- radim-rh
-- rawsyntax
+- rosa-hcp-platform-fleet-team
 reviewers:
 - iamkirkbater
 - bergmannf
 - srep-functional-team-hulk
-- anfranci14
-- andrebeltrami
-- ChunxiAlexLuo
-- nelsonjean
-- radim-rh
-- rawsyntax
+- rosa-hcp-platform-fleet-team
 maintainers:

@@ -90,10 +90,11 @@ aliases:
     - reedcort
     - fernaspiazu
   rosa-hcp-platform-fleet-team:
-    - radim-rh
-    - ChunxiAlexLuo
-    - andrebeltrami
     - anfranci14
+    - andrebeltrami
+    - ChunxiAlexLuo
+    - nelsonjean
+    - radim-rh
     - rawsyntax
   rosa-hcp-platform-capa-capi-team:
     - serngawy
