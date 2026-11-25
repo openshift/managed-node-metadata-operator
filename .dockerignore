@@ -1,0 +1,10 @@
+# More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
+# Ignore build and test binaries.
+bin/
+testbin/
+build/_output/
+
+# Keep local container-engine credentials out of the build context.
+# standard.mk points REGISTRY_AUTH_FILE at .docker/config.json, and
+# build/Dockerfile copies the whole tree so `make go-build` can run.
+.docker/
