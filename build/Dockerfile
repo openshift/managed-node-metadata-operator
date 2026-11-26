@@ -8,13 +8,14 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
-# Copy the go source
-COPY main.go main.go
-COPY controllers/ controllers/
-COPY pkg/ pkg/
+# Copy the whole tree: `make go-build` runs the boilerplate `ensure-fips`
+# generator first, which needs boilerplate/ and the git metadata.
+COPY . .
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux GO111MODULE=on go build -mod=mod -a -o manager main.go
+# Build via boilerplate so the image gets the FIPS wiring the Makefile asks
+# for (FIPS_ENABLED=true): the generated fips.go assertion, GOFIPS140, the
+# no_openssl build tag and the dynamic-linking check.
+RUN make go-build
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
@@ -24,7 +25,7 @@ ENV USER_UID=1001 \
     USER_NAME=managed-node-metadata-operator
 
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/build/_output/bin/managed-node-metadata-operator /manager
 USER ${USER_UID}
 
 ENTRYPOINT ["/manager"]
